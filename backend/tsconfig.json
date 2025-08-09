@@ -2,8 +2,8 @@
   "compilerOptions": {
     "target": "ES2020",                         // Good balance for async/await and modern JS features
     "module": "CommonJS",                       // Use "CommonJS" for Node.js compatibility
-    "rootDir": "./src",                         // All your source files live in /src
-    "outDir": "./dist",                         // Compiled JS files go into /dist
+    "rootDir": "src",                         // All your source files live in /src
+    "outDir": "dist",                         // Compiled JS files go into /dist
     "esModuleInterop": true,                    // Enables default import syntax
     "moduleResolution": "node",                 // Required for resolving node_modules
     "resolveJsonModule": true,                  // Allows importing .json files
