@@ -1,20 +1,16 @@
 {
   "compilerOptions": {
-    "target": "ES2020",                         // Good balance for async/await and modern JS features
-    "module": "CommonJS",                       // Use "CommonJS" for Node.js compatibility
-    "rootDir": "src",                         // All your source files live in /src
-    "outDir": "dist",                         // Compiled JS files go into /dist
-    "esModuleInterop": true,                    // Enables default import syntax
-    "moduleResolution": "node",                 // Required for resolving node_modules
-    "resolveJsonModule": true,                  // Allows importing .json files
-    "sourceMap": true,                          // Generates .map files for debugging
-    "declaration": true,                        // Generates .d.ts files (optional)
-    "strict": true,                             // Enables all strict type checks
-    "noImplicitAny": true,                      // Avoids silent any type
-    "skipLibCheck": true,                       // Speeds up build time by skipping type check on node_modules
-    "forceConsistentCasingInFileNames": true,   // Avoids case-sensitive issues
-    "types": ["node"]                           // Enables Node.js types
+    "target": "es2020",
+    "module": "commonjs",
+    "lib": ["es2020"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
   },
-  "include": ["src"],                          // Tell TS to only compile files in src
-  "exclude": ["node_modules", "dist", "uploads"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
 }
