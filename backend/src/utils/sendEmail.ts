@@ -1,4 +1,4 @@
-// utils/sendEmail.ts
+
 import nodemailer from "nodemailer";
 
 
@@ -11,6 +11,9 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS, 
       },
+      tls: {
+        rejectUnauthorized: false // ✅ avoids self-signed certificate errors
+    }
     });
 
     await transporter.sendMail({
