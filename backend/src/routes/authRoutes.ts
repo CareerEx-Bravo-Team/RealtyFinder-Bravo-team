@@ -25,4 +25,3 @@ router.post("/reset-password", resetPassword);
 // Protected route (requires JWT)
 router.get("/dashboard", authMiddleware, dashboard);
 
-export default router;
