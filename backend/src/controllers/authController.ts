@@ -201,10 +201,12 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
+
     // Validate input
     if (!email || !password) {
       return res.status(400).json({ message: "Email and password are required" });
     }
+
 
     // Find user by email
     const user = await User.findOne({ email });
@@ -332,3 +334,4 @@ export const dashboard = async (req: Request, res: Response): Promise<Response> 
       return res.status(200).json({ message: `Welcome ${req.user.firstName}, here is your individual user dashboard.` });
   }
 };
+
