@@ -89,3 +89,5 @@ export const getProperties = async (req: Request, res: Response) => {
   }
 };
 
+
+
