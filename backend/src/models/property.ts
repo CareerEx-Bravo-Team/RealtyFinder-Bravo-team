@@ -1,24 +1,32 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 
-export interface IProperty {
+// Define the TypeScript interface for a Property document in MongoDB
+export interface IProperty extends Document {
   title: string;
   description: string;
   price: number;
   location: string;
+  type: string; // e.g., apartment, house, land
   images: string[];
+  user: mongoose.Types.ObjectId; // reference to User collection
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-const propertySchema = new Schema<IProperty>(
+// Define the schema (MongoDB structure)
+const PropertySchema: Schema = new Schema(
   {
-    title: { type: String, required: true },
+    title: { type: String, required: true, trim: true },
     description: { type: String, required: true },
-    price: { type: Number, required: true },
+    price: { type: Number, required: true, min: 0 },
     location: { type: String, required: true },
+    type: { type: String, required: true, enum: ["apartment", "house", "land"] },
     images: { type: [String], default: [] },
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true }, // relation
   },
   { timestamps: true }
 );
 
-const Property = mongoose.model<IProperty>("Property", propertySchema);
-
+// Export the model
+const Property = mongoose.model<IProperty>("Property", PropertySchema);
 export default Property;

@@ -9,23 +9,26 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+
 const PORT = process.env.PORT || 5000;
 
-// ✅ use the imported router
+// import auth routes
 app.use("/api/auth", authRoutes);
+
+// Import property routes
+app.use("/api/properties", propertyRoutes);
 
 //This serve the frontend the uploads image, useful to show the uploaded peoperty images
 app.use("/uploads", express.static("uploads"));
 
-// Import property routes
-app.use("/api/properties", propertyRoutes);
+
 
 app.get("/", (req: Request, res: Response) => {
   res.send("RealityFinder API is running");
 });
 
 mongoose
-  .connect(process.env.MONGODB_URL || "")
+  .connect(process.env.MONGODB_URI || "")
   .then(() => console.log(`✅ MongoDB Connected`))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 

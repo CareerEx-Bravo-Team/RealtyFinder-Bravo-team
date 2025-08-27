@@ -31,3 +31,13 @@ export const authMiddleware = async (
     return res.status(401).json({ message: "Invalid or expired token", error });
   }
 };
+
+
+//Admin authorization middleware
+export const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  if (req.user && req.user.role === "admin") {
+    next();
+  } else {
+    res.status(403).json({ message: "Access denied, admin only" });
+  }
+};
