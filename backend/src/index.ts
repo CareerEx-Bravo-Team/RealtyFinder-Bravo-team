@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes"; // ✅ import the router
 import propertyRoutes from "./routes/propertyRoutes";
+import passport from "passport";
 
 dotenv.config();
 
@@ -10,17 +11,22 @@ const app = express();
 app.use(express.json());
 
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 
 // import auth routes
 app.use("/api/auth", authRoutes);
 
+
 // Import property routes
 app.use("/api/properties", propertyRoutes);
+
 
 //This serve the frontend the uploads image, useful to show the uploaded peoperty images
 app.use("/uploads", express.static("uploads"));
 
+
+// Initialize Passport
+app.use(passport.initialize());
 
 
 app.get("/", (req: Request, res: Response) => {

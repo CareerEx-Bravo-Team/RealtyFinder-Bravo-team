@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { IUser, User } from '../models/user';
-import { sendEmail } from '../utils/sendEmail'; // Assuming you have a utility to send emails
+import User, { IUser } from '../models/user';
+import { sendEmail } from '../utils/sendEmail';
+import { sendSms } from "../utils/sendSMS";
 import validator from "validator";
 import crypto from 'crypto';
+import { channel } from 'process';
 
 
 
@@ -25,91 +27,139 @@ const generateOTP = (): string => {
 };
 
 
-//REGISTER function
+
+// REGISTER function
 export const register = async (req: Request, res: Response) => {
   try {
-    const { firstName, middleName, lastName, email, password, role } = req.body;
+    const { firstName, middleName, lastName, email, phone, password, confirmPassword, role, preferredChannel } = req.body;
 
-    // Validate input
-    if (!firstName || !middleName || !lastName || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+    // Validate required fields
+    if (!firstName || !lastName || !password || !confirmPassword) {
+      return res.status(400).json({ message: "First name, last name, password, and confirm password are required" });
     }
 
-    if (!validator.isEmail(email)) {
-      return res.status(400).json({ message: "Invalid email" });
+    // Check confirm password
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: "Passwords do not match" });
     }
 
+    // Validate email if provided
+    if (email && !validator.isEmail(email)) {
+      return res.status(400).json({ message: "Invalid email address" });
+    }
+
+    // Validate phone if provided
+    if (phone && !validator.isMobilePhone(phone, "any", { strictMode: true })) {
+      return res.status(400).json({ message: "Invalid phone number. Use format +234806xxxxxxx" });
+    }
+
+    // At least one of email or phone is required
+    if (!email && !phone) {
+      return res.status(400).json({ message: "Either email or phone number is required" });
+    }
+
+    // Validate password length
     if (password.length < 6) {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
     }
 
-    // Check if user exists
-    const existingUser = await User.findOne({ email });
+    // Check if user exists by email or phone
+    const existingUser = await User.findOne({
+      $or: [{ email }, { phone }],
+    });
     if (existingUser) {
-      return res.status(400).json({ message: "Email already in use" });
+      return res.status(400).json({ message: "User with this email or phone already exists" });
     }
 
     // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    //validate role
+    // Validate role
     const validRoles = ["individual", "property_owner", "real_estate_agent", "admin"];
     const userRole = validRoles.includes(role) ? role : "individual";
 
-
-    // Generate OTP for email verification
+    // Generate OTP
     const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Create user
+    // Save user
     const newUser = await User.create({
       firstName,
-      lastName,
       middleName,
+      lastName,
       email,
+      phone,
       password: hashedPassword,
       role: userRole,
       otp,
       otpExpiry,
-      isVerified: false
+      isVerified: false,
     });
 
-    //save the user
-    await newUser.save();
+
+    // Decide where to send OTP
+  let sentVia: "email" | "phone" | null = null;
+
+  if (preferredChannel === "phone" && phone) {
+    await sendSms(phone, `Hello ${firstName}, your OTP is: ${otp}. Valid for 10 minutes.`);
+    sentVia = "phone";
+    } else if (preferredChannel === "email" && email) {
+      await sendEmail(
+        email,
+        "Verify your account",
+        `<p>Hello ${firstName}, your OTP is: <strong>${otp}</strong>. Valid for 10 minutes.</p>`
+      );
+      sentVia = "email";
+
+      
+    } else if (phone) {
+      // fallback if email not available
+      await sendSms(phone, `Hello ${firstName}, your OTP is: ${otp}. Valid for 10 minutes.`);
+      sentVia = "phone";
+    } else if (email) {
+      // fallback if phone not available
+      await sendEmail(
+        email,
+        "Verify your account",
+        `<p>Hello ${firstName}, your OTP is: <strong>${otp}</strong>. Valid for 10 minutes.</p>`
+      );
+      sentVia = "email";
+    } else {
+      throw new Error("No valid contact method available for sending OTP.");
+    }
 
 
-    // Send verification email
-    await sendEmail(
-      email,
-      "Verify your email",
-      `<p>Hello ${firstName}, Your OTP for email verification is: <strong>${otp}</strong>. It is valid for 10 minutes.</p>`
+    // Create JWT
+    const token = jwt.sign(
+      { id: newUser._id, role: newUser.role },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "1d" }
     );
 
-    // Create JWT token
-    const token = jwt.sign({ id: newUser._id, role: newUser.role }, 
-      process.env.JWT_SECRET as string, {
-      expiresIn: "1d"
-    });
-
-    
-
     res.status(201).json({
-      message: "User registered. Please verify the OTP sent to your email.",
+      message: `User registered. Please verify the OTP sent to your ${sentVia}.`,
       user: {
         firstName: newUser.firstName,
         middleName: newUser.middleName,
         lastName: newUser.lastName,
         email: newUser.email,
-        role: newUser.role
+        phone: newUser.phone,
+        role: newUser.role,
       },
-      token
+      token,
     });
+  } catch (error: any) {
+  console.error("❌ Registration error:", error);
 
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error });
-  }
+  return res.status(500).json({
+    message: "Server error",
+    error: error.message || "Unknown error",
+    stack: error.stack, // optional: shows exactly where error happened
+  });
+}
+
 };
+
 
 
 //Verify OTP b4 login
