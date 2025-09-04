@@ -2,79 +2,111 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/user';
-import { sendEmail } from '../utils/sendEmail'; // Assuming you have a utility to send emails
+import { sendUserWelcomeEmail, sendAgentWelcomeEmail, sendEmail, sendPropertyOwnerWelcomeEmail } from '../utils/sendEmail'; // Assuming you have a utility to send emails
 import validator from "validator";
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 
 
 
 export const register = async (req: Request, res: Response) => {
-  try {
-    const { firstName, lastName, email, password, role } = req.body;
 
-    // Validate input
-    if (!firstName || !lastName || !email || !password) {
-      return res.status(400).json({ message: "All fields are required" });
+    try {
+        const { firstName, lastName, email, password, role } = req.body;
+
+        // Validate input
+        if (!firstName || !lastName || !email || !password) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
+        if (!validator.isEmail(email)) {
+            return res.status(400).json({ message: "Invalid email" });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ message: "Password must be at least 6 characters" });
+        }
+
+        // Check if user exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ message: "Email already in use" });
+        }
+
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const newUser = await User.create({
+            firstName,
+            lastName,
+            email,
+            password: hashedPassword,
+            role: role || "user" // Default to 'user' if no role is provided
+        });
+
+        if (process.env.ADMIN_EMAIL && process.env.ADMIN_EMAIL.toLowerCase().includes(email.toLowerCase())) {
+            newUser.role = "admin";
+        }
+
+        //save the user
+        await newUser.save();
+
+        // Create JWT token
+        const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || "secret", {
+            expiresIn: "7d"
+        });
+
+        // Send welcome email
+        if (newUser.role === "user") {
+            await sendUserWelcomeEmail(
+            newUser.email,
+            newUser.firstName,
+            token 
+          )
+        }
+
+        if (newUser.role === "agent") {
+            await sendAgentWelcomeEmail(
+            newUser.email,
+            newUser.firstName,
+            token 
+          )
+        }
+
+        if (newUser.role === "propertyOwner") {
+            await sendPropertyOwnerWelcomeEmail(
+            newUser.email,
+            newUser.firstName,
+            token 
+          )
+        }
+
+        if (newUser.role === "admin") {
+            await sendEmail(
+                newUser.email,
+                newUser.firstName,
+                token
+            );
+        }
+
+        res.status(201).json({
+            message: "User registered successfully",
+            user: {
+                firstName: newUser.firstName,
+                lastName: newUser.lastName,
+                email: newUser.email,
+                role: newUser.role
+            },
+            token
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: "Server error" });
     }
-
-    if (!validator.isEmail(email)) {
-      return res.status(400).json({ message: "Invalid email" });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
-    }
-
-    // Check if user exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "Email already in use" });
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = await User.create({
-      firstName,
-      lastName,
-      email,
-      password: hashedPassword,
-      role: role || "user" // Default to 'user' if no role is provided
-    });
-
-    //save the user
-    await newUser.save();
-
-    // Create JWT token
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET || "secret", {
-      expiresIn: "7d"
-    });
-
-    // Send welcome email
-    await sendEmail(
-      newUser.email,
-      "Welcome to RealityFinder",
-      `<h1>Hello ${newUser.firstName},</h1>
-      <p>Welcome to <b>RealityFinder</b>! 🎉</p>
-      <p>We’re excited to have you onboard</p>`  
-    )
-
-    res.status(201).json({
-      message: "User registered successfully",
-      user: {
-        firstName: newUser.firstName,
-        lastName: newUser.lastName,
-        email: newUser.email,
-        role: newUser.role
-      },
-      token
-    });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
 };
 
 
