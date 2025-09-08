@@ -35,32 +35,32 @@ export const register = async (req: Request, res: Response) => {
 
     // Validate required fields
     if (!firstName || !lastName || !password || !confirmPassword) {
-      return res.status(400).json({ message: "First name, last name, password, and confirm password are required" });
+      return res.status(400).json({ success: false, message: "First name, last name, password, and confirm password are required" });
     }
 
     // Check confirm password
     if (password !== confirmPassword) {
-      return res.status(400).json({ message: "Passwords do not match" });
+      return res.status(400).json({ success: false, message: "Passwords do not match" });
     }
 
     // Validate email if provided
     if (email && !validator.isEmail(email)) {
-      return res.status(400).json({ message: "Invalid email address" });
+      return res.status(400).json({ success: false, message: "Invalid email address" });
     }
 
     // Validate phone if provided
     if (phone && !validator.isMobilePhone(phone, "any", { strictMode: true })) {
-      return res.status(400).json({ message: "Invalid phone number. Use format +234806xxxxxxx" });
+      return res.status(400).json({ success: false, message: "Invalid phone number. Use format +234806xxxxxxx" });
     }
 
     // At least one of email or phone is required
     if (!email && !phone) {
-      return res.status(400).json({ message: "Either email or phone number is required" });
+      return res.status(400).json({ success: false, message: "Either email or phone number is required" });
     }
 
     // Validate password length
     if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
     }
 
     // Check if user exists by email or phone
@@ -68,7 +68,7 @@ export const register = async (req: Request, res: Response) => {
       $or: [{ email }, { phone }],
     });
     if (existingUser) {
-      return res.status(400).json({ message: "User with this email or phone already exists" });
+      return res.status(400).json({ success: false, message: "User with this email or phone already exists" });
     }
 
     // Hash password
@@ -100,16 +100,17 @@ export const register = async (req: Request, res: Response) => {
     // Decide where to send OTP
   let sentVia: "email" | "phone" | null = null;
 
-  if (preferredChannel === "phone" && phone) {
-    await sendSms(phone, `Hello ${firstName}, your OTP is: ${otp}. Valid for 10 minutes.`);
-    sentVia = "phone";
-    } else if (preferredChannel === "email" && email) {
-      await sendEmail(
-        email,
-        "Verify your account",
-        `<p>Hello ${firstName}, your OTP is: <strong>${otp}</strong>. Valid for 10 minutes.</p>`
+  if (preferredChannel === "email" && email) {
+    await sendEmail(
+      email,
+      "Verify your account",
+      `<p>Hello ${firstName}, your OTP is: <strong>${otp}</strong>. Valid for 10 minutes.</p>`
       );
       sentVia = "email";
+    } else if (preferredChannel === "phone" && phone) {
+      await sendSms(phone, `Hello ${firstName}, your OTP is: ${otp}. Valid for 10 minutes.`);
+      
+      sentVia = "phone";
 
       
     } else if (phone) {
@@ -280,6 +281,7 @@ export const login = async (req: Request, res: Response) => {
     res.status(200).json({ 
       message: "Login successful",
       user: {
+        _id: user._id,
         firstName: user.firstName,
         middleName: user.middleName,
         lastName: user.lastName,

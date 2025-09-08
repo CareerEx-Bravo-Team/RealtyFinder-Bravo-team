@@ -9,7 +9,7 @@ export interface IUser extends Document {
   phone?: string;
   password: string;
   otp?: string;
-  otpExpiry?: Date;   // ✅ matches schema field
+  otpExpiry?: Date; 
   isVerified: boolean;
   verifiedBy: "email" | "phone";
   role: "individual" | "property_owner" | "real_estate_agent" | "admin";
@@ -33,7 +33,7 @@ const userSchema: Schema = new Schema(
     phone: {
       type: String,
       unique: true,
-      sparse: true, // allows multiple docs with null phone
+      sparse: true,
       match: [/^\+?[1-9]\d{1,14}$/, "Please fill a valid phone number"],
     },
     password: {
@@ -41,9 +41,9 @@ const userSchema: Schema = new Schema(
       required: true,
       minlength: [6, "Password must be at least 6 characters long"],
     },
-    confirmPassword: { type: String, required: false }, // Not stored, used for validation only
+    confirmPassword: { type: String, required: false },
     otp: { type: String, default: undefined },
-    otpExpiry: { type: Date, default: undefined }, // ✅ consistent with interface
+    otpExpiry: { type: Date, default: undefined },
     isVerified: { type: Boolean, default: false },
     verifiedBy: { type: String, enum: ["email", "phone"], default: "email"},
     
