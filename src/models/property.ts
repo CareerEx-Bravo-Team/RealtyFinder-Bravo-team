@@ -9,6 +9,8 @@ export interface IProperty extends Document {
   type: string; // e.g., apartment, house, land
   images: string[];
   user: mongoose.Types.ObjectId; // reference to User collection
+  verifiedBadge: boolean;
+  landlordBadge: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,7 +24,9 @@ const PropertySchema: Schema = new Schema(
     location: { type: String, required: true },
     type: { type: String, required: true, enum: ["apartment", "house", "land"] },
     images: { type: [String], default: [] },
-    user: { type: Schema.Types.ObjectId, ref: "User", required: true }, // relation
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    verifiedBadge: { type: Boolean, default: false },
+    landlordBadge: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
