@@ -16,26 +16,30 @@ const app = express();
 app.use(express.json());
 
 //Dynamic CORS configuration
-const allowedOrigin = [
+const allowedOrigins = [
   "http://localhost:5173",
-  process.env.FRONTEND_URL || "https://realty-finder.vercel.app"
-]
+  "http://127.0.0.1:5173",
+  "https://realty-finder.vercel.app"
+];
 
-// Enable CORS for frontend (adjust in production)
+//
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigin.includes(origin)) {
+      if (!origin) return callback(null, true); // allow non-browser tools like Postman
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.log("❌ CORS blocked for origin:", origin);
         callback(new Error("Not allowed by CORS"));
       }
     },
+    credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
   })
 );
+
 
 const PORT = process.env.PORT || 8000;
 
