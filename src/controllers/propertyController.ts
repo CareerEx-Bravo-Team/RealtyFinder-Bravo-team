@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Property from "../models/property";
 import { escapeLocation } from "../utils/helpers";
+import { IUser } from "../models/user";
 
 
 // ---------------------- CREATE PROPERTY ----------------------
@@ -23,7 +24,7 @@ export const createProperty = async (req: Request, res: Response) => {
       location,
       type,
       images: imagePaths,
-      user: req.user._id, // Link to the user creating the property
+      user: (req.user as IUser)._id, // Link to the user creating the property
     });
 
     await property.save();

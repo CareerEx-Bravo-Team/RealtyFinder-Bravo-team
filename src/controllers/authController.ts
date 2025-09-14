@@ -6,18 +6,8 @@ import { sendEmail } from '../utils/sendEmail';
 import { sendSms } from "../utils/sendSMS";
 import validator from "validator";
 import crypto from 'crypto';
-import { channel } from 'process';
 
 
-
-// Extend Express Request interface to include 'user'
-declare global {
-  namespace Express {
-    interface Request {
-      user?: IUser;
-    }
-  }
-}
 
 
 
@@ -31,58 +21,91 @@ const generateOTP = (): string => {
 // REGISTER function
 export const register = async (req: Request, res: Response) => {
   try {
-    const { firstName, middleName, lastName, email, phone, password, confirmPassword, role, preferredChannel } = req.body;
+    const {
+      firstName,
+      middleName,
+      lastName,
+      email,
+      phone,
+      password,
+      confirmPassword,
+      role,
+      preferredChannel,
+    } = req.body;
 
-    // Validate required fields
+    // -------------------- Validations --------------------
     if (!firstName || !lastName || !password || !confirmPassword) {
-      return res.status(400).json({ success: false, message: "First name, last name, password, and confirm password are required" });
+      return res.status(400).json({
+        success: false,
+        message: "First name, last name, password, and confirm password are required",
+      });
     }
 
-    // Check confirm password
     if (password !== confirmPassword) {
       return res.status(400).json({ success: false, message: "Passwords do not match" });
     }
 
-    // Validate email if provided
     if (email && !validator.isEmail(email)) {
       return res.status(400).json({ success: false, message: "Invalid email address" });
     }
 
-    // Validate phone if provided
     if (phone && !validator.isMobilePhone(phone, "any", { strictMode: true })) {
-      return res.status(400).json({ success: false, message: "Invalid phone number. Use format +234806xxxxxxx" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid phone number. Use format +234806xxxxxxx",
+      });
     }
 
-    // At least one of email or phone is required
     if (!email && !phone) {
-      return res.status(400).json({ success: false, message: "Either email or phone number is required" });
+      return res.status(400).json({
+        success: false,
+        message: "Either email or phone number is required",
+      });
     }
 
-    // Validate password length
     if (password.length < 6) {
-      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
     }
 
-    // Check if user exists by email or phone
+    // -------------------- Check for existing user --------------------
+    const query: any = {};
+    if (email) query.email = email;
+    if (phone) query.phone = phone;
+
     const existingUser = await User.findOne({
-      $or: [{ email }, { phone }],
+      $or: Object.entries(query).map(([key, value]) => ({ [key]: value })),
     });
+
+    console.log("🔍 Checking existing user with query:", query);
+    console.log("🔍 Found existing user:", existingUser);
+
     if (existingUser) {
-      return res.status(400).json({ success: false, message: "User with this email or phone already exists" });
+      if (existingUser.isVerified) {
+        return res.status(400).json({
+          success: false,
+          message: "User with this email or phone already exists",
+        });
+      } else {
+        // Not verified → allow re-register
+        await User.deleteOne({ _id: existingUser._id });
+      }
     }
 
-    // Hash password
+    // -------------------- Hash password --------------------
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Validate role
+    // -------------------- Role validation --------------------
     const validRoles = ["individual", "property_owner", "real_estate_agent", "admin"];
     const userRole = validRoles.includes(role) ? role : "individual";
 
-    // Generate OTP
+    // -------------------- Generate OTP --------------------
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Save user
+    // -------------------- Save new user --------------------
     const newUser = await User.create({
       firstName,
       middleName,
@@ -96,41 +119,31 @@ export const register = async (req: Request, res: Response) => {
       isVerified: false,
     });
 
+    // -------------------- Send OTP --------------------
+    let sentVia: "email" | "phone" | null = null;
 
-    // Decide where to send OTP
-  let sentVia: "email" | "phone" | null = null;
-
-  if (preferredChannel === "email" && email) {
-    await sendEmail(
-      email,
-      "Verify your account",
-      `<p>Hello ${firstName}, your OTP is: <strong>${otp}</strong>. Valid for 10 minutes.</p>`
-      );
-      sentVia = "email";
-    } else if (preferredChannel === "phone" && phone) {
-      await sendSms(phone, `Hello ${firstName}, your OTP is: ${otp}. Valid for 10 minutes.`);
-      
-      sentVia = "phone";
-
-      
-    } else if (phone) {
-      // fallback if email not available
-      await sendSms(phone, `Hello ${firstName}, your OTP is: ${otp}. Valid for 10 minutes.`);
-      sentVia = "phone";
-    } else if (email) {
-      // fallback if phone not available
-      await sendEmail(
-        email,
-        "Verify your account",
-        `<p>Hello ${firstName}, your OTP is: <strong>${otp}</strong>. Valid for 10 minutes.</p>`
-      );
-      sentVia = "email";
-    } else {
-      throw new Error("No valid contact method available for sending OTP.");
+    try {
+      if (email) {
+        // Prefer email first
+        await sendEmail(
+          email,
+          "Verify your account",
+          `<p>Hello ${firstName}, your OTP is: <strong>${otp}</strong>. Valid for 10 minutes.</p>`
+        );
+        sentVia = "email";
+      } else if (phone) {
+        await sendSms(phone, `Hello ${firstName}, your OTP is: ${otp}. Valid for 10 minutes.`);
+        sentVia = "phone";
+      } else {
+        throw new Error("No valid contact method available for sending OTP.");
+      }
+    } catch (error) {
+      console.warn("⚠ OTP sending failed:", error);
+      sentVia = null; // We still register the user
     }
 
 
-    // Create JWT
+    // -------------------- Create JWT --------------------
     const token = jwt.sign(
       { id: newUser._id, role: newUser.role },
       process.env.JWT_SECRET as string,
@@ -150,16 +163,15 @@ export const register = async (req: Request, res: Response) => {
       token,
     });
   } catch (error: any) {
-  console.error("❌ Registration error:", error);
-
-  return res.status(500).json({
-    message: "Server error",
-    error: error.message || "Unknown error",
-    stack: error.stack, // optional: shows exactly where error happened
-  });
-}
-
+    console.error("❌ Registration error:", error);
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message || "Unknown error",
+      stack: error.stack,
+    });
+  }
 };
+
 
 
 
@@ -370,20 +382,21 @@ export const resetPassword = async (req: Request, res: Response): Promise<Respon
 // Dashboard (Protected Route)
 
 export const dashboard = async (req: Request, res: Response): Promise<Response> => {
-  if (!req.user) {
+  const user = req.user as IUser;
+  if (!user) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  switch (req.user.role) {
+  switch (user.role) {
     case "admin":
-      return res.status(200).json({ message: `Welcome Admin ${req.user.firstName}, manage the system.` });
+      return res.status(200).json({ message: `Welcome Admin ${user.firstName}, manage the system.` });
     case "real_estate_agent":
-      return res.status(200).json({ message: `Welcome Agent ${req.user.firstName}, here is your agent dashboard.` });
+      return res.status(200).json({ message: `Welcome Agent ${user.firstName}, here is your agent dashboard.` });
     case "property_owner":
-      return res.status(200).json({ message: `Welcome Owner ${req.user.firstName}, manage your properties here.` });
+      return res.status(200).json({ message: `Welcome Owner ${user.firstName}, manage your properties here.` });
     case "individual":
     default:
-      return res.status(200).json({ message: `Welcome ${req.user.firstName}, here is your individual user dashboard.` });
+      return res.status(200).json({ message: `Welcome ${user.firstName}, here is your individual user dashboard.` });
   }
 };
 
