@@ -2,15 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import User, { IUser } from "../models/user";
 
-// Extend Express Request type to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: IUser;
-    }
-  }
-}
-
+// Authentication middleware
 export const authMiddleware = async (
   req: Request,
   res: Response,
@@ -37,8 +29,8 @@ export const authMiddleware = async (
       return res.status(401).json({ message: "User not found" });
     }
 
-    // ✅ Attach user to request
-    req.user = user;
+    // Attach user to request (cast to IUser)
+    req.user = user as IUser;
 
     next();
   } catch (error) {
@@ -55,8 +47,12 @@ export const adminMiddleware = (
   res: Response,
   next: NextFunction
 ) => {
-  if (req.user && req.user.role === "admin") {
+  // cast req.user to IUser
+  const user = req.user as IUser | undefined;
+
+  if (user?.role === "admin") {
     return next();
   }
+
   return res.status(403).json({ message: "Access denied, admin only" });
 };

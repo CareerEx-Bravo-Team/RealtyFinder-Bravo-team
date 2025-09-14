@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createReport } from "../controllers/reportController";
+import { createReport, getReportsForProperty, deleteReport } from "../controllers/reportController";
 
 
 
@@ -9,10 +9,10 @@ const router = Router();
 router.post("/properties/:propertyId/report", createReport);
 
 // GET /api/reports/:propertyId
-router.get("/properties/:propertyId/reports", createReport);
+router.get("/properties/:propertyId/reports", getReportsForProperty);
 
 // DELETE /api/reports/:reportId
-router.delete("/reports/:reportId", createReport);
+router.delete("/reports/:reportId", deleteReport);
 
 
 

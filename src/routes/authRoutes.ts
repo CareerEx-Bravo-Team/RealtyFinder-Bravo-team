@@ -1,4 +1,6 @@
 import express from "express";
+import passport from "../config/passport";
+import jwt from "jsonwebtoken";
 import {
   register,
   login,
@@ -9,50 +11,43 @@ import {
   dashboard,
 } from "../controllers/authController";
 import { authMiddleware } from "../middlewares/authMiddleware";
-import passport from "../config/passport";
-import jwt from "jsonwebtoken";
 import { IUser } from "../models/user";
 
-
 const router = express.Router();
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
-// Auth
+// ---------------------- Auth ---------------------- //
 router.post("/register", register);
 router.post("/verify-otp", verifyOTP);
 router.post("/resend-otp", resendOTP);
 router.post("/login", login);
 
-// Google OAuth routes
+// ---------------------- Google OAuth ---------------------- //
 router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
 
-// Callback route after Google authentication
-router.get("/google/callback", passport.authenticate("google", { session: false, failureRedirect: `${process.env.FRONTEND_URL}/login` }),
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { session: false, failureRedirect: `${frontendUrl}/login` }),
   (req, res) => {
-    // Successful authentication, generate JWT and redirect or respond
-    if (!req.user) {
-      return res.status(400).json({ message: "Authentication failed" });
-    }
+    if (!req.user) return res.status(400).json({ message: "Authentication failed" });
+
     const user = req.user as IUser;
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
       process.env.JWT_SECRET as string,
       { expiresIn: "1d" }
     );
-    // Redirect to frontend with token (you can change this to suit your frontend)
-    const redirectUrl = `${process.env.FRONTEND_URL}/oauth-success?token=${token}`;
+
+    const redirectUrl = `${frontendUrl}/oauth-success?token=${token}`;
     return res.redirect(redirectUrl);
   }
 );
 
-
-
-// Password management
+// ---------------------- Password Management ---------------------- //
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 
-// Protected route (requires JWT)
+// ---------------------- Protected Routes ---------------------- //
 router.get("/dashboard", authMiddleware, dashboard);
 
-
 export default router;
-

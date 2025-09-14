@@ -31,3 +31,18 @@ export const getReportsForProperty = async (req: Request, res: Response, next: N
 };
 
 
+// Delete a report
+export const deleteReport = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const reportId = req.params.reportId;
+        const report = await Report.findByIdAndDelete(reportId);
+        if (!report) {
+            return res.status(404).json({ message: "Report not found" });
+        }
+        return res.status(200).json({ message: "Report deleted" });
+    } catch (error) {
+        return res.status(500).json({ message: "Server error", error: (error as Error).message });
+    }
+};
+
+

@@ -2,19 +2,15 @@ import { Router } from "express";
 import { addToWishlist, getWishlist, removeFromWishlist } from "../controllers/wishlistController";
 import { authMiddleware } from "../middlewares/authMiddleware";
 
-
 const router = Router();
 
-
-// POST /api/wishlist
+// Add item to wishlist
 router.post("/", authMiddleware, addToWishlist);
 
-// GET /api/wishlist/:userId
+// Get wishlist for a user
 router.get("/:userId", authMiddleware, getWishlist);
 
-// DELETE /api/wishlist/:id
+// Remove item from wishlist
 router.delete("/:id", authMiddleware, removeFromWishlist);
-
-
 
 export default router;

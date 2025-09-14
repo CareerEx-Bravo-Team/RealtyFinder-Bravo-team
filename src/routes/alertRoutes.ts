@@ -2,23 +2,18 @@ import { Router } from "express";
 import { createAlert, getAlertsForUser, updateAlert, deleteAlert } from "../controllers/alertControllers";
 import { authMiddleware } from "../middlewares/authMiddleware";
 
-
 const router = Router();
 
-
-
-// POST /api/alerts
+// Create alert
 router.post("/", authMiddleware, createAlert);
 
-// GET /api/alerts/:userId
+// Get alerts for a user
 router.get("/:userId", authMiddleware, getAlertsForUser);
 
-// PUT /api/alerts/:id
+// Update alert
 router.patch("/:id", authMiddleware, updateAlert);
 
-// DELETE /api/alerts/:id
+// Delete alert
 router.delete("/:id", authMiddleware, deleteAlert);
-
-
 
 export default router;
