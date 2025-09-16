@@ -4,9 +4,10 @@ import jwt from "jsonwebtoken";
 import {
   register,
   login,
+  verifyOTP,
   forgotPassword,
   resetPassword,
-  verifyOTP,
+  verifyResetOtp,
   resendOTP,
   dashboard,
 } from "../controllers/authController";
@@ -43,8 +44,9 @@ router.get(
   }
 );
 
-// ---------------------- Password Management ---------------------- //
+// Password Management
 router.post("/forgot-password", forgotPassword);
+router.post("/verify-reset-otp", verifyResetOtp);
 router.post("/reset-password", resetPassword);
 
 // ---------------------- Protected Routes ---------------------- //
