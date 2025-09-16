@@ -336,7 +336,17 @@ export const forgotPassword = async (req: Request, res: Response): Promise<Respo
       `Hello ${user.firstName},\n\nYour OTP for password reset is: ${otp}\nIt expires in 10 minutes.`
     );
 
-    return res.status(200).json({ message: "Password reset OTP sent to email" });
+
+    // Generate short-lived reset token
+    const resetToken = jwt.sign(
+      { email: user.email },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "1d" }
+    );
+
+
+
+    return res.status(200).json({ message: "Password reset OTP sent to email", resetToken });
   } catch (error) {
     console.error("Forgot Password Error:", error);
     return res.status(500).json({ message: "Server error", error });
@@ -346,25 +356,57 @@ export const forgotPassword = async (req: Request, res: Response): Promise<Respo
 
 
 
+
+//verify OTP for reset password
+export const verifyResetOtp = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { otp, resetToken } = req.body;
+    if (!otp || !resetToken) {
+      return res.status(400).json({ message: "OTP and resetToken are required" });
+    }
+
+    // Decode token to get email
+    const decoded = jwt.verify(resetToken, process.env.JWT_SECRET as string) as { email: string };
+    const user = await User.findOne({ email: decoded.email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Check if OTP is valid
+    if (String(user.otp) !== String(otp) || !user.otpExpiry || user.otpExpiry < new Date()) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+
+    return res.status(200).json({ message: "OTP verified successfully" });
+  } catch (error) {
+    console.error("Verify Reset OTP Error:", error);
+    return res.status(500).json({ message: "Server error", error });
+  }
+};
+
+
+
+
+
 // Reset password function
 export const resetPassword = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { email, otp, newPassword } = req.body;
-
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ message: "Email, OTP and new password are required" });
+    const { newPassword, resetToken } = req.body;
+    if (!newPassword || !resetToken) {
+      return res.status(400).json({ message: "New password and resetToken are required" });
     }
 
-    const user = await User.findOne({ email });
+    // Decode token to get email
+    const decoded = jwt.verify(resetToken, process.env.JWT_SECRET as string) as { email: string };
+    const user = await User.findOne({ email: decoded.email });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (String(user.otp) !== String(otp) || !user.otpExpiry || user.otpExpiry < new Date()) {
-      return res.status(400).json({ message: "Invalid or expired OTP" });
+    if (!user.otp || !user.otpExpiry || user.otpExpiry < new Date()) {
+      return res.status(400).json({ message: "OTP expired or not verified" });
     }
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
 
+    // Clear OTP after reset
     user.otp = undefined;
     user.otpExpiry = undefined;
     await user.save();
@@ -375,6 +417,8 @@ export const resetPassword = async (req: Request, res: Response): Promise<Respon
     return res.status(500).json({ message: "Server error", error });
   }
 };
+
+
 
 
 
