@@ -79,9 +79,7 @@ export const register = async (req: Request, res: Response) => {
       $or: Object.entries(query).map(([key, value]) => ({ [key]: value })),
     });
 
-    console.log("🔍 Checking existing user with query:", query);
-    console.log("🔍 Found existing user:", existingUser);
-
+    
     if (existingUser) {
       if (existingUser.isVerified) {
         return res.status(400).json({
@@ -256,6 +254,25 @@ export const resendOTP = async (req: Request, res: Response): Promise<Response> 
 
 
 
+
+//GOOGLE AUTH CONTROLLER
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+
+export const googleAuthCallback = (req: Request, res: Response) => {
+  if (!req.user) return res.status(400).json({ message: "Authentication failed" });
+  
+  const user = req.user as IUser;
+
+  const token = jwt.sign(
+    { id: user._id, email: user.email, role: user.role },
+    process.env.JWT_SECRET as string,
+    { expiresIn: "1d" }
+  );
+
+  // Redirect to frontend with token
+  const redirectUrl = `${frontendUrl}/oauth-success?token=${token}`;
+  return res.redirect(redirectUrl);
+};
 
 
 
