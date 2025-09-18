@@ -80,6 +80,9 @@ app.get("/", (req: Request, res: Response) => {
   res.send("RealityFinder API is running");
 });
 
+
+
+
 // ------------------ MongoDB ------------------
 const PORT = process.env.PORT || 8000;
 

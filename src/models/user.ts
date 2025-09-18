@@ -11,7 +11,7 @@ export interface IUser extends Document {
   otp?: string;
   otpExpiry?: Date; 
   isVerified: boolean;
-  verifiedBy: "email" | "phone";
+  verifiedBy: "email" | "phone" | "google";
   role: "individual" | "property_owner" | "real_estate_agent" | "admin";
 }
 
@@ -45,7 +45,8 @@ const userSchema: Schema = new Schema(
     otp: { type: String, default: undefined },
     otpExpiry: { type: Date, default: undefined },
     isVerified: { type: Boolean, default: false },
-    verifiedBy: { type: String, enum: ["email", "phone"], default: "email"},
+    verifiedBy: { type: String, enum: ["email", "phone", "google"], default: "email"
+    },
     
     role: {
       type: String,

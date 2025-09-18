@@ -1,55 +1,39 @@
 import express from "express";
 import passport from "../config/passport";
-import jwt from "jsonwebtoken";
-import {
-  register,
-  login,
-  verifyOTP,
-  forgotPassword,
-  resetPassword,
-  verifyResetOtp,
-  resendOTP,
-  dashboard,
-} from "../controllers/authController";
+import { register, login, verifyOTP, forgotPassword, resetPassword, verifyResetOtp, resendOTP, dashboard} from "../controllers/authController";
 import { authMiddleware } from "../middlewares/authMiddleware";
-import { IUser } from "../models/user";
+import { googleAuthCallback } from "../controllers/authController";
+
+
 
 const router = express.Router();
-const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
-// ---------------------- Auth ---------------------- //
+
+// LOCAL AUTH
 router.post("/register", register);
 router.post("/verify-otp", verifyOTP);
 router.post("/resend-otp", resendOTP);
 router.post("/login", login);
 
-// ---------------------- Google OAuth ---------------------- //
+
+
+//GOOGLE AUTH
 router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
 
-router.get(
-  "/google/callback",
-  passport.authenticate("google", { session: false, failureRedirect: `${frontendUrl}/login` }),
-  (req, res) => {
-    if (!req.user) return res.status(400).json({ message: "Authentication failed" });
+router.get("/google/callback", passport.authenticate("google", { session: false, failureRedirect: `${process.env.FRONTEND_URL}/login` }), googleAuthCallback);
 
-    const user = req.user as IUser;
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET as string,
-      { expiresIn: "1d" }
-    );
 
-    const redirectUrl = `${frontendUrl}/oauth-success?token=${token}`;
-    return res.redirect(redirectUrl);
-  }
-);
+
 
 // Password Management
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-reset-otp", verifyResetOtp);
 router.post("/reset-password", resetPassword);
 
-// ---------------------- Protected Routes ---------------------- //
+
+
+// Protected route
 router.get("/dashboard", authMiddleware, dashboard);
+
 
 export default router;

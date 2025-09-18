@@ -34,16 +34,14 @@ passport.use(new GoogleStrategy(
                 const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
                 
-                user = new User({
+                user = await new User({
                     firstName: profile.name.givenName || "GoogleUser",
                     middleName: "",
                     lastName: profile.name.familyName || "GoogleUser",
                     email,
                     password: hashedPassword,
                     isVerified: true, // Google accounts are considered verified
-                    verifiedBy: "email",
-                    otp: undefined,
-                    otpExpiry: undefined,
+                    verifiedBy: "google",
                     role: "individual",
                 });
 
@@ -51,16 +49,14 @@ passport.use(new GoogleStrategy(
             }else {
                     // If user exists but is not verified, mark as verified
                     if (!user.isVerified) {
-                        user.isVerified = true;
-                        user.verifiedBy = "email";
-                        user.otp = undefined;
-                        user.otpExpiry = undefined;
+                        user.isVerified = true,
+                        user.verifiedBy = "google",
                         await user.save();
                     }
                 }
             return done(null, user);
         } catch (error) {
-            return done(error);
+            return done(error, null);
 
         }
     }
