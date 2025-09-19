@@ -9,7 +9,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 
-
+console.log("Google Callback URL in passport:", process.env.GOOGLE_CALLBACK_URL);
 // Configure the Google strategy for use by Passport.
 passport.use(new GoogleStrategy(
     {
