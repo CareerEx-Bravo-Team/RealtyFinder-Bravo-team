@@ -6,6 +6,8 @@ import { sendEmail } from '../utils/sendEmail';
 import { sendSms } from "../utils/sendSMS";
 import validator from "validator";
 import crypto from 'crypto';
+import dotenv from 'dotenv';
+dotenv.config();
 
 
 
@@ -256,7 +258,7 @@ export const resendOTP = async (req: Request, res: Response): Promise<Response> 
 
 
 //GOOGLE AUTH CONTROLLER
-const frontendUrl = process.env.FRONTEND_URL;
+const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
 
 export const googleAuthCallback = (req: Request, res: Response) => {
   if (!req.user) return res.status(400).json({ message: "Authentication failed" });
