@@ -11,6 +11,10 @@ import paymentRoutes from "./routes/paymentRoutes";
 import wishlistRoutes from "./routes/wishlistRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import alertRoutes from "./routes/alertRoutes";
+import profileRoutes from "./routes/profileRoutes";
+
+
+
 
 dotenv.config();
 
@@ -39,17 +43,20 @@ app.use(
   })
 );
 
+
 // Handle preflight requests
 app.options("*", cors());
 
+
 // ------------------ Routes ------------------
-// Use **relative paths only**
 app.use("/api/auth", authRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/wishlists", wishlistRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/alerts", alertRoutes);
+app.use("/api/profile", profileRoutes);
+
 
 
 //Handle undefined routes
@@ -79,6 +86,9 @@ app.use(passport.initialize());
 app.get("/", (req: Request, res: Response) => {
   res.send("RealityFinder API is running");
 });
+
+
+
 
 // ------------------ MongoDB ------------------
 const PORT = process.env.PORT || 8000;
