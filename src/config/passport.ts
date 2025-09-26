@@ -19,9 +19,14 @@ passport.use(new GoogleStrategy(
     },
     async (accessToken: string, refreshToken: string, profile: any, done: any) => {
         try {
+            console.log("✅ Google Profile:", profile); // 👈 See what Google sends
+            console.log("✅ Google Email:", profile.emails?.[0]?.value);
+            
             // Check if user already exists
             const email = profile.emails[0].value;
             if (!email) {
+                console.log("❌ No email found in Google profile");
+
                 return done(new Error("No email found in Google profile"));
             }
 
@@ -46,6 +51,7 @@ passport.use(new GoogleStrategy(
                 });
 
                 await user.save();
+                console.log("✅ New Google user created:", user);
             }else {
                     // If user exists but is not verified, mark as verified
                     if (!user.isVerified) {
@@ -53,9 +59,12 @@ passport.use(new GoogleStrategy(
                         user.verifiedBy = "google",
                         await user.save();
                     }
+                    console.log("✅ Existing Google user verified:", user);
+
                 }
             return done(null, user);
         } catch (error) {
+            console.error("❌ Error in GoogleStrategy:", error);
             return done(error, null);
 
         }

@@ -22,7 +22,9 @@ export interface IUser extends Document {
     linkedin?: string;
     instagram?: string;
   };
+  lastLogin?: Date
 }
+
 
 const userSchema: Schema = new Schema(
   {
@@ -47,6 +49,7 @@ const userSchema: Schema = new Schema(
       linkedin: { type: String, trim: true },
       instagram: { type: String, trim: true },
     },
+    lastLogin: { type: Date }
   },
   { timestamps: true }
 );
