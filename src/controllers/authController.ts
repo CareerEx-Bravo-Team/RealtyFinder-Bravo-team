@@ -257,26 +257,6 @@ export const resendOTP = async (req: Request, res: Response): Promise<Response> 
 
 
 
-//GOOGLE AUTH CONTROLLER
-const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-
-export const googleAuthCallback = (req: Request, res: Response) => {
-  if (!req.user) return res.status(400).json({ message: "Authentication failed" });
-  
-  const user = req.user as IUser;
-
-  const token = jwt.sign(
-    { id: user._id, email: user.email, role: user.role },
-    process.env.JWT_SECRET as string,
-    { expiresIn: "1d" }
-  );
-
-  // Redirect to frontend with token
-  const redirectUrl = `${frontendUrl}/oauth-success?token=${token}`;
-  return res.redirect(redirectUrl);
-};
-
-
 
 // Login function
 export const login = async (req: Request, res: Response) => {
@@ -303,6 +283,12 @@ export const login = async (req: Request, res: Response) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
+
+    // Update lastLogin
+    user.lastLogin = new Date();
+    await user.save();
+
+    
     // Create JWT token
     const token = jwt.sign({ id: user._id, role: user.role }, 
       process.env.JWT_SECRET as string, {
@@ -317,7 +303,8 @@ export const login = async (req: Request, res: Response) => {
         middleName: user.middleName,
         lastName: user.lastName,
         email: user.email,
-        role: user.role
+        role: user.role,
+        
       },
       token });
 
@@ -328,6 +315,31 @@ export const login = async (req: Request, res: Response) => {
 
 
 
+//GOOGLE AUTH CONTROLLER
+
+export const googleAuthCallback = (req: Request, res: Response) => {
+  if (!req.user) {
+    console.log("❌ No user found passport");
+    return res.status(400).json({ message: "Authentication failed" });
+  }
+
+ 
+  const user = req.user as IUser;
+  console.log("✅ User from Passport in Callback:", user);
+
+  const token = jwt.sign(
+    { id: user._id, email: user.email, role: user.role },
+    process.env.JWT_SECRET as string,
+    { expiresIn: "1d" }
+  );
+
+  // Redirect to frontend with token
+  const redirectUrl = `${process.env.FRONTEND_URL}/oauth-success?token=${token}`;
+  console.log("🔗 Redirecting to:", redirectUrl);
+  
+  return res.redirect(redirectUrl);
+
+};
 
 
 
