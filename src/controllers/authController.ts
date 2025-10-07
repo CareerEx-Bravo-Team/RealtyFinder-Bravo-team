@@ -1,24 +1,18 @@
-import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import User, { IUser } from '../models/user';
-import { sendEmail } from '../utils/sendEmail';
+import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import User, { IUser } from "../models/user";
+import { sendEmail } from "../utils/sendEmail";
 import { sendSms } from "../utils/sendSMS";
 import validator from "validator";
-import crypto from 'crypto';
-import dotenv from 'dotenv';
+import crypto from "crypto";
+import dotenv from "dotenv";
 dotenv.config();
-
-
-
-
 
 //otp generator
 const generateOTP = (): string => {
-  return crypto.randomInt(100000, 999999).toString(); 
+  return crypto.randomInt(100000, 999999).toString();
 };
-
-
 
 // REGISTER function
 export const register = async (req: Request, res: Response) => {
@@ -39,16 +33,21 @@ export const register = async (req: Request, res: Response) => {
     if (!firstName || !lastName || !password || !confirmPassword) {
       return res.status(400).json({
         success: false,
-        message: "First name, last name, password, and confirm password are required",
+        message:
+          "First name, last name, password, and confirm password are required",
       });
     }
 
     if (password !== confirmPassword) {
-      return res.status(400).json({ success: false, message: "Passwords do not match" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Passwords do not match" });
     }
 
     if (email && !validator.isEmail(email)) {
-      return res.status(400).json({ success: false, message: "Invalid email address" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid email address" });
     }
 
     if (phone && !validator.isMobilePhone(phone, "any", { strictMode: true })) {
@@ -81,7 +80,6 @@ export const register = async (req: Request, res: Response) => {
       $or: Object.entries(query).map(([key, value]) => ({ [key]: value })),
     });
 
-    
     if (existingUser) {
       if (existingUser.isVerified) {
         return res.status(400).json({
@@ -98,7 +96,12 @@ export const register = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // -------------------- Role validation --------------------
-    const validRoles = ["individual", "property_owner", "real_estate_agent", "admin"];
+    const validRoles = [
+      "individual",
+      "property_owner",
+      "real_estate_agent",
+      "admin",
+    ];
     const userRole = validRoles.includes(role) ? role : "individual";
 
     // -------------------- Generate OTP --------------------
@@ -132,7 +135,10 @@ export const register = async (req: Request, res: Response) => {
         );
         sentVia = "email";
       } else if (phone) {
-        await sendSms(phone, `Hello ${firstName}, your OTP is: ${otp}. Valid for 10 minutes.`);
+        await sendSms(
+          phone,
+          `Hello ${firstName}, your OTP is: ${otp}. Valid for 10 minutes.`
+        );
         sentVia = "phone";
       } else {
         throw new Error("No valid contact method available for sending OTP.");
@@ -141,7 +147,6 @@ export const register = async (req: Request, res: Response) => {
       console.warn("⚠ OTP sending failed:", error);
       sentVia = null; // We still register the user
     }
-
 
     // -------------------- Create JWT --------------------
     const token = jwt.sign(
@@ -172,11 +177,11 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
-
-
-
 //Verify OTP b4 login
-export const verifyOTP = async (req: Request, res: Response): Promise<Response> => {
+export const verifyOTP = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   try {
     const { email, otp } = req.body;
 
@@ -195,10 +200,13 @@ export const verifyOTP = async (req: Request, res: Response): Promise<Response> 
     }
 
     // Check if OTP is valid
-    if (String(user.otp) !== String(otp) || !user.otpExpiry || user.otpExpiry < new Date()) {
+    if (
+      String(user.otp) !== String(otp) ||
+      !user.otpExpiry ||
+      user.otpExpiry < new Date()
+    ) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
-
 
     // OTP is valid, verify user
     user.isVerified = true;
@@ -213,11 +221,11 @@ export const verifyOTP = async (req: Request, res: Response): Promise<Response> 
   }
 };
 
-
-
-
 //RESEND OTP function
-export const resendOTP = async (req: Request, res: Response): Promise<Response> => {
+export const resendOTP = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "Email is required" });
@@ -254,21 +262,17 @@ export const resendOTP = async (req: Request, res: Response): Promise<Response> 
   }
 };
 
-
-
-
-
 // Login function
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-
     // Validate input
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
     }
-
 
     // Find user by email
     const user = await User.findOne({ email });
@@ -276,26 +280,30 @@ export const login = async (req: Request, res: Response) => {
 
     // Check if user is verified
     if (!user.isVerified) {
-      return res.status(401).json({ message: "Please verify your account first" });
+      return res
+        .status(401)
+        .json({ message: "Please verify your account first" });
     }
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
-
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid credentials" });
 
     // Update lastLogin
     user.lastLogin = new Date();
     await user.save();
 
-    
     // Create JWT token
-    const token = jwt.sign({ id: user._id, role: user.role }, 
-      process.env.JWT_SECRET as string, {
-      expiresIn: "1d"
-    });
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET as string,
+      {
+        expiresIn: "1d",
+      }
+    );
 
-    res.status(200).json({ 
+    res.status(200).json({
       message: "Login successful",
       user: {
         _id: user._id,
@@ -304,16 +312,13 @@ export const login = async (req: Request, res: Response) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
-        
       },
-      token });
-
+      token,
+    });
   } catch (err) {
     res.status(500).json({ message: "Server error", err });
   }
 };
-
-
 
 //GOOGLE AUTH CONTROLLER
 
@@ -323,7 +328,6 @@ export const googleAuthCallback = (req: Request, res: Response) => {
     return res.status(400).json({ message: "Authentication failed" });
   }
 
- 
   const user = req.user as IUser;
   console.log("✅ User from Passport in Callback:", user);
 
@@ -336,17 +340,15 @@ export const googleAuthCallback = (req: Request, res: Response) => {
   // Redirect to frontend with token
   const redirectUrl = `${process.env.FRONTEND_URL}/oauth-success?token=${token}`;
   console.log("🔗 Redirecting to:", redirectUrl);
-  
-  return res.redirect(redirectUrl);
 
+  return res.redirect(redirectUrl);
 };
 
-
-
-
-
 // Forgot password function
-export const forgotPassword = async (req: Request, res: Response): Promise<Response> => {
+export const forgotPassword = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "Email is required" });
@@ -367,7 +369,6 @@ export const forgotPassword = async (req: Request, res: Response): Promise<Respo
       `Hello ${user.firstName},\n\nYour OTP for password reset is: ${otp}\nIt expires in 10 minutes.`
     );
 
-
     // Generate short-lived reset token
     const resetToken = jwt.sign(
       { email: user.email },
@@ -375,34 +376,42 @@ export const forgotPassword = async (req: Request, res: Response): Promise<Respo
       { expiresIn: "1d" }
     );
 
-
-
-    return res.status(200).json({ message: "Password reset OTP sent to email", resetToken });
+    return res
+      .status(200)
+      .json({ message: "Password reset OTP sent to email", resetToken });
   } catch (error) {
     console.error("Forgot Password Error:", error);
     return res.status(500).json({ message: "Server error", error });
   }
 };
 
-
-
-
-
 //verify OTP for reset password
-export const verifyResetOtp = async (req: Request, res: Response): Promise<Response> => {
+export const verifyResetOtp = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   try {
     const { otp, resetToken } = req.body;
     if (!otp || !resetToken) {
-      return res.status(400).json({ message: "OTP and resetToken are required" });
+      return res
+        .status(400)
+        .json({ message: "OTP and resetToken are required" });
     }
 
     // Decode token to get email
-    const decoded = jwt.verify(resetToken, process.env.JWT_SECRET as string) as { email: string };
+    const decoded = jwt.verify(
+      resetToken,
+      process.env.JWT_SECRET as string
+    ) as { email: string };
     const user = await User.findOne({ email: decoded.email });
     if (!user) return res.status(404).json({ message: "User not found" });
 
     // Check if OTP is valid
-    if (String(user.otp) !== String(otp) || !user.otpExpiry || user.otpExpiry < new Date()) {
+    if (
+      String(user.otp) !== String(otp) ||
+      !user.otpExpiry ||
+      user.otpExpiry < new Date()
+    ) {
       return res.status(400).json({ message: "Invalid or expired OTP" });
     }
 
@@ -413,20 +422,24 @@ export const verifyResetOtp = async (req: Request, res: Response): Promise<Respo
   }
 };
 
-
-
-
-
 // Reset password function
-export const resetPassword = async (req: Request, res: Response): Promise<Response> => {
+export const resetPassword = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   try {
     const { newPassword, resetToken } = req.body;
     if (!newPassword || !resetToken) {
-      return res.status(400).json({ message: "New password and resetToken are required" });
+      return res
+        .status(400)
+        .json({ message: "New password and resetToken are required" });
     }
 
     // Decode token to get email
-    const decoded = jwt.verify(resetToken, process.env.JWT_SECRET as string) as { email: string };
+    const decoded = jwt.verify(
+      resetToken,
+      process.env.JWT_SECRET as string
+    ) as { email: string };
     const user = await User.findOne({ email: decoded.email });
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -449,14 +462,12 @@ export const resetPassword = async (req: Request, res: Response): Promise<Respon
   }
 };
 
-
-
-
-
-
 // Dashboard (Protected Route)
 
-export const dashboard = async (req: Request, res: Response): Promise<Response> => {
+export const dashboard = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
   const user = req.user as IUser;
   if (!user) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -464,14 +475,29 @@ export const dashboard = async (req: Request, res: Response): Promise<Response> 
 
   switch (user.role) {
     case "admin":
-      return res.status(200).json({ message: `Welcome Admin ${user.firstName}, manage the system.` });
+      return res
+        .status(200)
+        .json({
+          message: `Welcome Admin ${user.firstName}, manage the system.`,
+        });
     case "real_estate_agent":
-      return res.status(200).json({ message: `Welcome Agent ${user.firstName}, here is your agent dashboard.` });
+      return res
+        .status(200)
+        .json({
+          message: `Welcome Agent ${user.firstName}, here is your agent dashboard.`,
+        });
     case "property_owner":
-      return res.status(200).json({ message: `Welcome Owner ${user.firstName}, manage your properties here.` });
+      return res
+        .status(200)
+        .json({
+          message: `Welcome Owner ${user.firstName}, manage your properties here.`,
+        });
     case "individual":
     default:
-      return res.status(200).json({ message: `Welcome ${user.firstName}, here is your individual user dashboard.` });
+      return res
+        .status(200)
+        .json({
+          message: `Welcome ${user.firstName}, here is your individual user dashboard.`,
+        });
   }
 };
-
