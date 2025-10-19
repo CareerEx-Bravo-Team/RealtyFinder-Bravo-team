@@ -7,6 +7,8 @@ import passport from "passport";
 // Route imports
 import authRoutes from "./routes/authRoutes";
 import propertyRoutes from "./routes/propertyRoutes";
+import messageRoutes from "./routes/messageRoute";
+import bookingRoutes from "./routes/bookingRoute";
 import paymentRoutes from "./routes/paymentRoutes";
 import wishlistRoutes from "./routes/wishlistRoutes";
 import reportRoutes from "./routes/reportRoutes";
@@ -17,9 +19,6 @@ import adminRoutes from "./routes/adminRoutes";
 // Middleware imports
 import { activityTracker } from "./middlewares/activityTrackerMiddleware";
 import { authMiddleware } from "./middlewares/authMiddleware";
-
-
-
 
 
 dotenv.config();
@@ -49,18 +48,14 @@ app.use(
   })
 );
 
-
 // Handle preflight requests
 app.options("*", cors());
 
-
 // ------------------ Routes ------------------
 app.use("/api/auth", authRoutes);
-
-
-// Apply activity tracker middleware to all routes below
 app.use("/api/properties", authMiddleware as any, activityTracker as any, propertyRoutes);
-
+app.use("/api/messages", messageRoutes);
+app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/wishlists", wishlistRoutes);
 app.use("/api/reports", reportRoutes);
@@ -68,24 +63,17 @@ app.use("/api/alerts", alertRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/admin", adminRoutes);
 
-
-
 //Handle undefined routes
 app.use((req: Request, res: Response) => {
-    res.status(404).json({
-        message: `The URL ${req.originalUrl} doesn't exist`
-    });
+  res.status(404).json({
+    message: `The URL ${req.originalUrl} doesn't exist`,
+  });
 });
-
 
 //Health check route
 app.get("/api/health", (req: Request, res: Response) => {
   res.status(200).json({ status: "success", message: "API is healthy" });
 });
-
-
-
-
 
 // Serve uploads folder
 app.use("/uploads", express.static("uploads"));
@@ -97,9 +85,6 @@ app.use(passport.initialize());
 app.get("/", (req: Request, res: Response) => {
   res.send("RealityFinder API is running");
 });
-
-
-
 
 // ------------------ MongoDB ------------------
 const PORT = process.env.PORT || 8000;
