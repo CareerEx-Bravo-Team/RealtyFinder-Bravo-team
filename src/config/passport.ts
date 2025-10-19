@@ -19,8 +19,7 @@ passport.use(new GoogleStrategy(
     },
     async (accessToken: string, refreshToken: string, profile: any, done: any) => {
         try {
-            console.log("✅ Google Profile:", profile); // 👈 See what Google sends
-            console.log("✅ Google Email:", profile.emails?.[0]?.value);
+            
             
             // Check if user already exists
             const email = profile.emails[0].value;

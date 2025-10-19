@@ -7,6 +7,7 @@ import { sendSms } from "../utils/sendSMS";
 import validator from "validator";
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import { logActivity } from '../utils/activityLogger';
 dotenv.config();
 
 
@@ -124,19 +125,23 @@ export const register = async (req: Request, res: Response) => {
 
     try {
       if (email) {
-        // Prefer email first
         await sendEmail(
           email,
           "Verify your account",
-          `<p>Hello ${firstName}, your OTP is: <strong>${otp}</strong>. Valid for 10 minutes.</p>`
+          `
+          <p>Hello ${firstName},</p>
+          <p>Welcome to our platform! Please use the OTP below to verify your account:</p>
+          <h2 style="color:#1E90FF;">${otp}</h2>
+          <p>This code is valid for 10 minutes.</p>
+          <p>Best regards,<br/>Your App Team</p>
+          `
         );
         sentVia = "email";
       } else if (phone) {
-        await sendSms(phone, `Hello ${firstName}, your OTP is: ${otp}. Valid for 10 minutes.`);
+        await sendSms(phone, `Hello ${firstName}, your OTP is ${otp}. It expires in 10 minutes.`);
         sentVia = "phone";
-      } else {
-        throw new Error("No valid contact method available for sending OTP.");
       }
+
     } catch (error) {
       console.warn("⚠ OTP sending failed:", error);
       sentVia = null; // We still register the user
@@ -216,15 +221,20 @@ export const verifyOTP = async (req: Request, res: Response): Promise<Response> 
 
 
 
-//RESEND OTP function
+// RESEND OTP function
 export const resendOTP = async (req: Request, res: Response): Promise<Response> => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: "Email is required" });
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
 
     // Find user by email
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
 
     // Check if already verified
     if (user.isVerified) {
@@ -232,25 +242,50 @@ export const resendOTP = async (req: Request, res: Response): Promise<Response> 
     }
 
     // Generate new OTP and expiry
-    const otp = generateOTP();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-
-    // Update user with new OTP
+    const otp = generateOTP(); // e.g. 6-digit random
     user.otp = otp;
-    user.otpExpiry = otpExpiry;
+    user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     await user.save();
 
-    // Send email
-    await sendEmail(
-      user.email,
-      "Resend OTP Verification",
-      `Hello ${user.firstName},\n\nYour new OTP code is: ${otp}\nIt expires in 10 minutes.`
-    );
+    // Create HTML email content
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Resend OTP Verification</h2>
+        <p>Hello <strong>${user.firstName}</strong>,</p>
+        <p>Your new OTP code is:</p>
+        <h3 style="color: #007bff;">${otp}</h3>
+        <p>This code expires in <strong>10 minutes</strong>.</p>
+        <br />
+        <p>Best regards,</p>
+        <p><strong>RealityFinder Team</strong></p>
+      </div>
+    `;
 
-    return res.status(200).json({ message: "OTP resent successfully" });
-  } catch (error) {
-    console.error("Resend OTP Error:", error);
-    return res.status(500).json({ message: "Server error", error });
+    // Send email via Brevo
+    try {
+      await sendEmail(
+        user.email,
+        "Your Resent OTP Code",
+        html
+      );
+    } catch (error) {
+      console.error("❌ Brevo email failed to send", error);
+      return res.status(500).json({
+        message: "OTP generated but failed to send email. Try again later.",
+      });
+    }
+
+    console.log(`✅ OTP resent to ${user.email}`);
+
+    return res.status(200).json({
+      message: "OTP resent successfully. Please check your email.",
+    });
+  } catch (error: any) {
+    console.error("❌ Resend OTP Error:", error);
+    return res.status(500).json({
+      message: "Server error during resend OTP",
+      error: error.message,
+    });
   }
 };
 
@@ -288,6 +323,9 @@ export const login = async (req: Request, res: Response) => {
     user.lastLogin = new Date();
     await user.save();
 
+    // Log user activity
+    await logActivity(String(user._id), "User logged in", "success");
+
     
     // Create JWT token
     const token = jwt.sign({ id: user._id, role: user.role }, 
@@ -304,6 +342,7 @@ export const login = async (req: Request, res: Response) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        lastLogin: user.lastLogin
         
       },
       token });

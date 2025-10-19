@@ -20,7 +20,6 @@ router.post("/login", login);
 //GOOGLE AUTH
 router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
 
-// router.get("/google/callback", passport.authenticate("google", { session: false, failureRedirect: `${process.env.FRONTEND_URL}/login` }), googleAuthCallback);
 
 router.get(
   "/google/callback",

@@ -6,7 +6,7 @@ export interface IUser extends Document {
   middleName?: string;
   lastName: string;
   companyName?: string;
-  Address?: string;
+  address?: string;
   email: string;
   phone: string;
   password: string;
@@ -22,7 +22,8 @@ export interface IUser extends Document {
     linkedin?: string;
     instagram?: string;
   };
-  lastLogin?: Date
+  lastLogin?: Date;
+  lastActivity?: Date;
 }
 
 
@@ -49,7 +50,8 @@ const userSchema: Schema = new Schema(
       linkedin: { type: String, trim: true },
       instagram: { type: String, trim: true },
     },
-    lastLogin: { type: Date }
+    lastLogin: { type: Date },
+    lastActivity: { type: Date },
   },
   { timestamps: true }
 );

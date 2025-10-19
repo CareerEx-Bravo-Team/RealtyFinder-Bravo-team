@@ -12,6 +12,12 @@ import wishlistRoutes from "./routes/wishlistRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import alertRoutes from "./routes/alertRoutes";
 import profileRoutes from "./routes/profileRoutes";
+import adminRoutes from "./routes/adminRoutes";
+
+// Middleware imports
+import { activityTracker } from "./middlewares/activityTrackerMiddleware";
+import { authMiddleware } from "./middlewares/authMiddleware";
+
 
 
 
@@ -50,12 +56,17 @@ app.options("*", cors());
 
 // ------------------ Routes ------------------
 app.use("/api/auth", authRoutes);
-app.use("/api/properties", propertyRoutes);
+
+
+// Apply activity tracker middleware to all routes below
+app.use("/api/properties", authMiddleware as any, activityTracker as any, propertyRoutes);
+
 app.use("/api/payments", paymentRoutes);
 app.use("/api/wishlists", wishlistRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/admin", adminRoutes);
 
 
 

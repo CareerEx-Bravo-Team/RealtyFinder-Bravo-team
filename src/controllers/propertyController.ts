@@ -2,21 +2,38 @@ import { Request, Response } from "express";
 import Property from "../models/property";
 import { escapeLocation } from "../utils/helpers";
 import { IUser } from "../models/user";
+import { logActivity } from "../utils/activityLogger";
+
 
 
 // ---------------------- CREATE PROPERTY ----------------------
 export const createProperty = async (req: Request, res: Response) => {
   try {
+    // ✅ Check if user is authenticated
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    const userId = (req.user as IUser)._id;
     const { title, description, price, location, type } = req.body;
 
-    // Collect uploaded image paths
-    const imagePaths = req.files
-      ? (req.files as Express.Multer.File[]).map((file) => file.path)
-      : [];
+    // ✅ Validate input
+    if (!title || !description || !price || !location || !type) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields (title, description, price, location, type) are required",
+      });
+    }
 
-    // Use logged-in admin's ID
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    // ✅ Handle uploaded images
+    let imagePaths: string[] = [];
+    if (req.files && Array.isArray(req.files)) {
+      imagePaths = req.files.map((file: any) => file.path);
+    } else if (req.file) {
+      imagePaths = [(req.file as any).path];
+    }
 
+    // ✅ Create property
     const property = new Property({
       title,
       description,
@@ -24,19 +41,34 @@ export const createProperty = async (req: Request, res: Response) => {
       location,
       type,
       images: imagePaths,
-      user: (req.user as IUser)._id, // Link to the user creating the property
+      user: userId,
+      isApproved: false,
+      approvalStatus: "pending",
     });
 
     await property.save();
 
+    // ✅ Log user activity
+    await logActivity(
+      String(userId),
+      `Added new property: ${property.title}`,
+      "success"
+    );
+
+    // ✅ Send response
     return res.status(201).json({
       success: true,
-      message: "Property created successfully",
+      message: "Property submitted successfully and is pending admin approval",
       property,
     });
+
   } catch (error: any) {
     console.error("❌ Error creating property:", error.message);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Server error while creating property",
+      error: error.message,
+    });
   }
 };
 
@@ -166,6 +198,9 @@ export const deleteProperty = async (req: Request, res: Response) => {
     }
 
     await property.deleteOne();
+
+    await logActivity(String(user?._id), `Deleted property: ${property.title}`, "success");
+
     res.status(200).json({ success: true, message: "Property deleted" });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message || "Server error" });
@@ -217,5 +252,44 @@ export const toggleVerifyBadge = async (req: Request, res: Response) => {
 
 
 
+// Get approved properties
+export const getApprovedProperties = async (req: Request, res: Response) => {
+  try {
+    const properties = await Property.find({ isApproved: true })
+      .populate("user", "firstName lastName email");
 
+    res.status(200).json({ success: true, data: properties });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message || "Server error" });
+  }
+
+};
+
+
+// Get pending properties
+export const getPendingProperties = async (req: Request, res: Response) => {
+  try {
+    const properties = await Property.find({ isApproved: false, approvalStatus: "pending" })
+      .populate("user", "firstName lastName email");
+    res.status(200).json({ success: true, data: properties });
+    
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message || "Server error" });
+  } 
+};
+
+// Get rejected properties
+export const getRejectedProperties = async (req: Request, res: Response) => {
+  try { 
+    const properties = await Property.find({ approvalStatus: "rejected" })
+      .populate("user", "firstName lastName email");
+    res.status(200).json({ success: true, data: properties });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message || "Server error" });
+  }
+};
+
+
+
+    
   
