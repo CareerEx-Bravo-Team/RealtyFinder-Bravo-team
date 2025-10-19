@@ -1,5 +1,6 @@
 import { Request, Response} from "express";
 import User from "../models/user";
+import { logActivity } from "../utils/activityLogger";
 
 
 
@@ -46,7 +47,12 @@ export const updateProfile = async (req: Request, res: Response) => {
         Object.assign(user, updates);
         await user.save();
 
-        res.json({ success: true, message: "Profile updated successfully", data: user });
+
+        // Add log after saving
+        await logActivity(userId, "Profile updated", "success");
+
+
+        res.status(200).json({ success: true, message: "Profile updated successfully", data: user });
     } catch (err: any) {
         console.error("❌ Error updating profile:", err);
         res.status(500).json({ success: false, message: err.message || "Server error" });

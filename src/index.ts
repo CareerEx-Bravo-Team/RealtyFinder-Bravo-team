@@ -14,6 +14,12 @@ import wishlistRoutes from "./routes/wishlistRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import alertRoutes from "./routes/alertRoutes";
 import profileRoutes from "./routes/profileRoutes";
+import adminRoutes from "./routes/adminRoutes";
+
+// Middleware imports
+import { activityTracker } from "./middlewares/activityTrackerMiddleware";
+import { authMiddleware } from "./middlewares/authMiddleware";
+
 
 dotenv.config();
 
@@ -47,7 +53,7 @@ app.options("*", cors());
 
 // ------------------ Routes ------------------
 app.use("/api/auth", authRoutes);
-app.use("/api/properties", propertyRoutes);
+app.use("/api/properties", authMiddleware as any, activityTracker as any, propertyRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
@@ -55,6 +61,7 @@ app.use("/api/wishlists", wishlistRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/admin", adminRoutes);
 
 //Handle undefined routes
 app.use((req: Request, res: Response) => {

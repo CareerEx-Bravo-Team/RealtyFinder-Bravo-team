@@ -11,6 +11,9 @@ export interface IProperty extends Document {
   user: mongoose.Types.ObjectId; // reference to User collection
   verifiedBadge: boolean;
   landlordBadge: boolean;
+  isApproved: boolean;
+  approvalStatus: "pending" | "approved" | "rejected";
+  rejectionReason: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +30,9 @@ const PropertySchema: Schema = new Schema(
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     verifiedBadge: { type: Boolean, default: false },
     landlordBadge: { type: Boolean, default: false },
+    isApproved: { type: Boolean, default: false },
+    approvalStatus: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
+    rejectionReason: { type: String, default: ""},
   },
   { timestamps: true }
 );

@@ -6,13 +6,13 @@ import nodemailer from "nodemailer";
 export const sendEmail = async (to: string, subject: string, html: string) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: "gmail", // you can also use "hotmail", "yahoo", or custom SMTP
+      service: "gmail", 
       auth: {
         user: process.env.EMAIL_USER, 
         pass: process.env.EMAIL_PASS, 
       },
       tls: {
-        rejectUnauthorized: false // ✅ avoids self-signed certificate errors
+        rejectUnauthorized: false 
     }
     });
 
