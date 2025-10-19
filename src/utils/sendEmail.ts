@@ -1,77 +1,30 @@
-
-
-
-import Brevo from "@getbrevo/brevo";
 import dotenv from "dotenv";
-
 dotenv.config();
 
+// Import Brevo properly for both ESM and CJS builds
+const Brevo = require("@getbrevo/brevo");
 
-
-const brevo = new Brevo.TransactionalEmailsApi();
-brevo.setApiKey(
-  Brevo.TransactionalEmailsApiApiKeys.apiKey,
-  process.env.BREVO_API_KEY as string
-);
+const apiInstance = new Brevo.TransactionalEmailsApi();
+apiInstance.authentications["apiKey"].apiKey = process.env.BREVO_API_KEY;
 
 export const sendEmail = async (to: string, subject: string, html: string) => {
   try {
-    const senderEmail = process.env.BREVO_SENDER_EMAIL as string;
-    const senderName = process.env.BREVO_SENDER_NAME as string || "RealityFinder";  
+    const senderEmail = process.env.BREVO_SENDER_EMAIL;
+    const senderName = process.env.BREVO_SENDER_NAME || "RealityFinder";
 
     const sendSmtpEmail = {
       sender: { email: senderEmail, name: senderName },
       to: [{ email: to }],
-      subject: subject,
+      subject,
       htmlContent: html,
     };
 
-    await brevo.sendTransacEmail(sendSmtpEmail);
-
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
     console.log("✅ Email sent successfully to", to);
-
-  }catch (error: any) {
-    console.error("❌ Email sending error:", error.response ? error.response.text : error.message);
+  } catch (error: any) {
+    console.error(
+      "❌ Email sending error:",
+      error.response?.text || error.message
+    );
   }
-
 };
-
-
-
-
-
-
-
-
-
-
-
-// import nodemailer from "nodemailer";
-
-
-
-// export const sendEmail = async (to: string, subject: string, html: string) => {
-//   try {
-//     const transporter = nodemailer.createTransport({
-//       service: "gmail", 
-//       auth: {
-//         user: process.env.EMAIL_USER, 
-//         pass: process.env.EMAIL_PASS, 
-//       },
-//       tls: {
-//         rejectUnauthorized: false 
-//     }
-//     });
-
-//     await transporter.sendMail({
-//       from: `"RealityFinder" <${process.env.EMAIL_USER}>`,
-//       to,
-//       subject,
-//       html,
-//     });
-
-//     console.log("✅ Email sent successfully to", to);
-//   } catch (error) {
-//     console.error("❌ Email sending error:", error);
-//   }
-// };
