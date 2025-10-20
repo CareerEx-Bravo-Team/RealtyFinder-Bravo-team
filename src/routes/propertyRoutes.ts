@@ -6,9 +6,9 @@ import {
   updateProperty,
   deleteProperty,
   toggleVerifyBadge,
-  getApprovedProperties,
-  getPendingProperties,
-  getRejectedProperties
+  getUserApprovedProperties,
+  getUserPendingProperties,
+  getUserRejectedProperties
 } from "../controllers/propertyController";
 import { upload } from "../middlewares/propertyUploadMiddleware";
 import { authMiddleware } from "../middlewares/authMiddleware";
@@ -34,13 +34,13 @@ router.get("/", getProperties);
 router.get("/:id", getPropertyById);
 
 // Get approved properties (admin only)
-router.get("/admin/approved", authMiddleware, getApprovedProperties);
+router.get("/user/approved", authMiddleware, getUserApprovedProperties);
 
 // Get pending properties (admin only)
-router.get("/admin/pending", authMiddleware, getPendingProperties);
+router.get("/user/pending", authMiddleware, getUserPendingProperties);
 
 // Get rejected properties (admin only)
-router.get("/admin/rejected", authMiddleware, getRejectedProperties);
+router.get("/user/rejected", authMiddleware, getUserRejectedProperties);
 
 
 

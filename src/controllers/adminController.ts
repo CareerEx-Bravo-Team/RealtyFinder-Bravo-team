@@ -221,7 +221,7 @@ export const rejectPropertyListing = async (req: Request, res: Response) => {
 export const getPendingProperties = async (req: Request, res: Response) => {
     try {
         const pending = await Property.find({ approvalStatus: "pending" })
-            .populate("user", "firstName lastName email");
+            .populate("property_owner", "firstName lastName email");
         res.status(200).json({ success: true, pending });
 
     } catch (error) {
@@ -235,7 +235,7 @@ export const getPendingProperties = async (req: Request, res: Response) => {
 export const getApprovedProperties = async (req: Request, res: Response) => {
   try {
     const properties = await Property.find({ isApproved: true })
-      .populate("user", "firstName lastName email");
+      .populate("property_owner", "firstName lastName email");
     res.status(200).json({ success: true, data: properties });
 
     } catch (err: any) {
@@ -248,7 +248,7 @@ export const getApprovedProperties = async (req: Request, res: Response) => {
 export const getRejectedProperties = async (req: Request, res: Response) => {
   try {
     const properties = await Property.find({ approvalStatus: "rejected" })
-      .populate("user", "firstName lastName email");
+      .populate("property_owner", "firstName lastName email");
     res.status(200).json({ success: true, data: properties });
 
     } catch (err: any) {
