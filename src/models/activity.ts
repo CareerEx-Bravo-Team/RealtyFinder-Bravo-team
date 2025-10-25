@@ -15,9 +15,11 @@ const ActivitySchema: Schema = new Schema(
     {
         user: { type: Schema.Types.ObjectId, ref: "User", required: true },
         action: { type: String, required: true },
-        status: { type: String, required: true, enum: ["Approved", "Pending", "Rejected"], default: "Approved" },
+        status: { type: String, required: true, enum: ["approved", "pending", "rejected"], default: "Approved" },
+        timestamp: { type: Date, default: Date.now },
     },
-    { timestamps: { createdAt: 'timestamp', updatedAt: false } }
+    { timestamps: true }
+    
 );   
 
 
