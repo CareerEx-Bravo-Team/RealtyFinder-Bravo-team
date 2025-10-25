@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getDashboardStats, getAllUsers, getUserById, updateUser, deleteUser, getRecentActivities, approvePropertyListing, rejectPropertyListing, getPendingProperties, getApprovedProperties, getRejectedProperties } from "../controllers/adminController";
+import { getDashboardStats, getAllUsers, getUserById, updateUser, deleteUser, getRecentActivities, rejectPropertyListing, getPendingProperties, getApprovedProperties, getRejectedProperties } from "../controllers/adminController";
 import { authMiddleware, adminMiddleware } from "../middlewares/authMiddleware";
 
 
@@ -16,7 +16,9 @@ router.get("/users/:id", authMiddleware, adminMiddleware, getUserById);
 router.put("/users/:id", authMiddleware, adminMiddleware, updateUser);
 router.delete("/users/:id", authMiddleware, adminMiddleware, deleteUser);
 router.get("/activities", authMiddleware, adminMiddleware, getRecentActivities);
-router.put("/approve-property/:id", authMiddleware, adminMiddleware, approvePropertyListing);
+
+
+// Property Management Routes
 router.put("/reject-property/:id", authMiddleware, adminMiddleware, rejectPropertyListing);
 router.get("/properties/pending", authMiddleware, adminMiddleware, getPendingProperties);
 router.get("/properties/approved", authMiddleware, adminMiddleware, getApprovedProperties);

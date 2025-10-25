@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
 import User from "../models/user";
 import Property from "../models/property";
-import { success } from "zod";
+import { property, success } from "zod";
 import Activity from "../models/activity";
 import { sendEmail } from "../utils/sendEmail";
+import PropertyRequest from "../models/propertyRequest";
+import Notification from "../models/notification";
 
 
 
@@ -142,40 +144,7 @@ export const getRecentActivities = async (req: Request, res: Response) => {
 };
 
 
-// Approve or Reject Property Listing
-export const approvePropertyListing = async (req: Request, res: Response) => {
-    try {
-        const { propertyId } = req.params;
 
-        const property = await Property.findById(propertyId);
-        if (!property) {
-            return res.status(404).json({ success: false, message: "Property not found" });
-        }
-        property.isApproved = true;
-        property.approvalStatus = "approved";
-        property.rejectionReason = "";
-
-        await property.save();
-
-        //Notify the owner
-        const owner = property.user as any;
-        if (owner && owner.email) {
-            await sendEmail(
-                owner.email,
-                "✅ Congratulations! Your property listing has been approved",
-                `<p>Dear ${owner.firstName},</p>
-                <p>We are pleased to inform you that your property listing titled "<strong>${property.title}</strong>" has been approved and is now live on our platform.</p>
-                <p>Thank you for choosing our platform to list your property.</p>
-                <p>Best regards,<br/>The RealtyFinder Team</p>`
-            );
-        }
-
-        res.status(200).json({ success: true, message: "Property listing approved", property });
-    } catch (error) {
-        console.error("Approve property listing error:", error);
-        res.status(500).json({ message: "Error approving property listing", error });
-    }
-};
 
 
 // Reject Property Listing
@@ -193,7 +162,6 @@ export const rejectPropertyListing = async (req: Request, res: Response) => {
         property.approvalStatus = "rejected";
         property.rejectionReason = rejectionReason || "No reason provided";
         await property.save();
-
         // Notify the owner
         const owner = property.user as any;
         if (owner && owner.email) {
@@ -221,7 +189,7 @@ export const rejectPropertyListing = async (req: Request, res: Response) => {
 export const getPendingProperties = async (req: Request, res: Response) => {
     try {
         const pending = await Property.find({ approvalStatus: "pending" })
-            .populate("user", "firstName lastName email");
+            .populate("property_owner", "firstName lastName email");
         res.status(200).json({ success: true, pending });
 
     } catch (error) {
@@ -235,7 +203,7 @@ export const getPendingProperties = async (req: Request, res: Response) => {
 export const getApprovedProperties = async (req: Request, res: Response) => {
   try {
     const properties = await Property.find({ isApproved: true })
-      .populate("user", "firstName lastName email");
+      .populate("property_owner", "firstName lastName email");
     res.status(200).json({ success: true, data: properties });
 
     } catch (err: any) {
@@ -248,10 +216,69 @@ export const getApprovedProperties = async (req: Request, res: Response) => {
 export const getRejectedProperties = async (req: Request, res: Response) => {
   try {
     const properties = await Property.find({ approvalStatus: "rejected" })
-      .populate("user", "firstName lastName email");
+      .populate("property_owner", "firstName lastName email");
     res.status(200).json({ success: true, data: properties });
 
     } catch (err: any) {
     res.status(500).json({ success: false, message: err.message || "Server error" });
   }
 };
+
+
+
+// updated Property requets status
+export const updatePropertyRequestStatus = async (req: Request, res: Response) => {
+    try {
+        const { requestId } = req.params;
+        const { status, rejectionReason } = req.body;
+
+        const propertyRequest = await PropertyRequest.findById(requestId).populate('user');
+        if (!propertyRequest) {
+            return res.status(404).json({ success: false, message: "Property request not found" });
+        }
+
+        propertyRequest.status = status;
+        propertyRequest.rejectionReason = status === "rejected" ? rejectionReason : "";
+        await propertyRequest.save();
+
+        // Ensure the populated user is treated as an object (cast from ObjectId)
+        const user = (propertyRequest.user as any) || { email: "", firstName: "" };
+
+        //notify user via email
+        if (status === "approved") {
+            await sendEmail(
+                user.email,
+                "✅ Your property request has been approved",
+                `<p>Dear ${user.firstName},</p>
+                <p>Your property request for a ${propertyRequest.propertyType} in ${propertyRequest.location} has been approved.</p>
+                <p>We will notify you with suitable listings soon.</p>
+                <p>Best regards,<br/>The RealtyFinder Team</p>`
+            );
+        }
+
+
+        if (status === "rejected") {
+            await sendEmail(
+                user.email,
+                "❌ Your property request has been rejected",
+                `<p>Dear ${user.firstName},</p>
+                <p>We regret to inform you that your property request for a ${propertyRequest.propertyType} in ${propertyRequest.location} has been rejected.</p>
+                <p>Reason: ${rejectionReason}</p>
+                <p>Please feel free to submit a new request with different criteria.</p>
+                <p>Best regards,<br/>The RealtyFinder Team</p>`
+            );
+        }
+
+
+        res.json({ success: true, message: "Property request status updated", propertyRequest });
+    } catch (error) {
+        console.error("Update property request status error:", error);
+        res.status(500).json({ message: "Error updating property request status", error });
+    }
+};
+
+
+
+
+
+

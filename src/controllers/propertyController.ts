@@ -3,6 +3,10 @@ import Property from "../models/property";
 import { escapeLocation } from "../utils/helpers";
 import { IUser } from "../models/user";
 import { logActivity } from "../utils/activityLogger";
+import message from "../models/message";
+import PropertyRequest from "../models/propertyRequest";
+import { sendEmail } from "../utils/sendEmail";
+import Notification from "../models/notification";
 
 
 
@@ -15,10 +19,10 @@ export const createProperty = async (req: Request, res: Response) => {
     }
 
     const userId = (req.user as IUser)._id;
-    const { title, description, price, location, type } = req.body;
+    const { title, description, price, location, type, address, state, country, postalCode, area, bedrooms, bathrooms, } = req.body;
 
     // ✅ Validate input
-    if (!title || !description || !price || !location || !type) {
+    if (!title || !description || !price || !location || !type || !address || !state || !country || !postalCode || !area || !bedrooms || !bathrooms) {
       return res.status(400).json({
         success: false,
         message: "All fields (title, description, price, location, type) are required",
@@ -40,6 +44,13 @@ export const createProperty = async (req: Request, res: Response) => {
       price: Number(price),
       location,
       type,
+      address,
+      state,
+      country,
+      postalCode,
+      area,
+      rooms: Number(bedrooms),
+      features: bathrooms,
       images: imagePaths,
       user: userId,
       isApproved: false,
@@ -249,14 +260,55 @@ export const toggleVerifyBadge = async (req: Request, res: Response) => {
 };
 
 
+// Approve or Reject Property Listing (Admin only)
+export const approvePropertyListing = async (req: Request, res: Response) => {
+    const propertyId = req.params.id;
+    const property = await Property.findById(propertyId);
+    if (!property) {
+        return res.status(404).json({ success: false, message: "Property not found" });
+    }
+
+    property.isApproved = true;
+    property.approvalStatus = "approved";
+    property.rejectionReason = "";
+
+    await property.save();
+
+    const matchingRequests = await PropertyRequest.find({
+        status: "approved",
+        propertyType: property.type,
+        location: property.location,
+        minPrice: { $lte: property.price },
+        maxPrice: { $gte: property.price },
+    }).populate("user");
+
+    for (const request of matchingRequests) {
+        const user = request.user as any;
+        if (user && user.email) {
+            await sendEmail(
+                user.email,
+                "Subject of the email",
+                `<p>Dear ${user.firstName},</p>\n<p>A new ${property.type} in ${property.location} that matches your property request is now available on RealtyFinder. Check it out!</p>\n<p>Best regards,<br/>The RealtyFinder Team</p>`
+            );
+
+            await Notification.create({
+                user: user._id,
+                message: `A new ${property.type} in ${property.location} matches your property request.`,
+            });
+        }
+    }
+
+    res.status(200).json({ success: true, message: "Property listing approved", property });
+};
+
 
 
 
 // Get approved properties
-export const getApprovedProperties = async (req: Request, res: Response) => {
+export const getUserApprovedProperties = async (req: Request, res: Response) => {
   try {
     const properties = await Property.find({ isApproved: true })
-      .populate("user", "firstName lastName email");
+      .populate("property_owner", "firstName lastName email");
 
     res.status(200).json({ success: true, data: properties });
   } catch (err: any) {
@@ -267,10 +319,10 @@ export const getApprovedProperties = async (req: Request, res: Response) => {
 
 
 // Get pending properties
-export const getPendingProperties = async (req: Request, res: Response) => {
+export const getUserPendingProperties = async (req: Request, res: Response) => {
   try {
     const properties = await Property.find({ isApproved: false, approvalStatus: "pending" })
-      .populate("user", "firstName lastName email");
+      .populate("property_owner", "firstName lastName email");
     res.status(200).json({ success: true, data: properties });
     
   } catch (err: any) {
@@ -279,10 +331,10 @@ export const getPendingProperties = async (req: Request, res: Response) => {
 };
 
 // Get rejected properties
-export const getRejectedProperties = async (req: Request, res: Response) => {
+export const getUserRejectedProperties = async (req: Request, res: Response) => {
   try { 
     const properties = await Property.find({ approvalStatus: "rejected" })
-      .populate("user", "firstName lastName email");
+      .populate("property_owner", "firstName lastName email");
     res.status(200).json({ success: true, data: properties });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message || "Server error" });

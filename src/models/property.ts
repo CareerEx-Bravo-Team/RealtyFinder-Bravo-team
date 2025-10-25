@@ -6,12 +6,22 @@ export interface IProperty extends Document {
   description: string;
   price: number;
   location: string;
-  type: string; // e.g., apartment, house, land
+  type: string;
+  area: string;
+  rooms: number;
+  address: string;
+  state: string;
+  postalCode: string;
+  features: string[];
+  name: string;
+  email: string;
+  phone: string;
   images: string[];
   user: mongoose.Types.ObjectId; // reference to User collection
   verifiedBadge: boolean;
   landlordBadge: boolean;
   isApproved: boolean;
+  bathrooms: number;
   approvalStatus: "pending" | "approved" | "rejected";
   rejectionReason: string;
   createdAt: Date;
@@ -28,6 +38,16 @@ const PropertySchema: Schema = new Schema(
     type: { type: String, required: true, enum: ["apartment", "house", "land"] },
     images: { type: [String], default: [] },
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    area: { type: String },
+    rooms: { type: Number },
+    address: { type: String },
+    state: { type: String },
+    postalCode: { type: String },
+    features: { type: [String], default: [] },
+    name: { type: String },
+    email: { type: String },
+    phone: { type: String },
+    bathrooms: { type: Number },
     verifiedBadge: { type: Boolean, default: false },
     landlordBadge: { type: Boolean, default: false },
     isApproved: { type: Boolean, default: false },

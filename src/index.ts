@@ -15,6 +15,8 @@ import reportRoutes from "./routes/reportRoutes";
 import alertRoutes from "./routes/alertRoutes";
 import profileRoutes from "./routes/profileRoutes";
 import adminRoutes from "./routes/adminRoutes";
+import propertyRequestRoutes from "./routes/propertyRequestRoutes";
+import notificationRoutes from "./routes/notificationRoutes";
 
 // Middleware imports
 import { activityTracker } from "./middlewares/activityTrackerMiddleware";
@@ -53,15 +55,21 @@ app.options("*", cors());
 
 // ------------------ Routes ------------------
 app.use("/api/auth", authRoutes);
-app.use("/api/properties", authMiddleware as any, activityTracker as any, propertyRoutes);
+app.use("/api/properties", propertyRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/wishlists", wishlistRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/alerts", alertRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/property-requests", propertyRequestRoutes);
+
+
+
+
 
 //Handle undefined routes
 app.use((req: Request, res: Response) => {
