@@ -22,7 +22,7 @@ export const createProperty = async (req: Request, res: Response) => {
     const { title, description, price, location, type, address, state, country, postalCode, area, bedrooms, bathrooms, } = req.body;
 
     // ✅ Validate input
-    if (!title || !description || !price || !location || !type || !address || !state || !country || !postalCode || !area || !bedrooms || !bathrooms) {
+    if (!title || !description || !price || !location || !type || !address || !state || !country || !bedrooms) {
       return res.status(400).json({
         success: false,
         message: "All fields (title, description, price, location, type) are required",
@@ -322,7 +322,7 @@ export const getUserApprovedProperties = async (req: Request, res: Response) => 
 export const getUserPendingProperties = async (req: Request, res: Response) => {
   try {
     const properties = await Property.find({ isApproved: false, approvalStatus: "pending" })
-      .populate("property_owner", "firstName lastName email");
+      .populate("user", "firstName lastName email");
     res.status(200).json({ success: true, data: properties });
     
   } catch (err: any) {
