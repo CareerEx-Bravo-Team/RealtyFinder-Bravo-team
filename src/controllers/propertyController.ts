@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import Property from "../models/property";
 import { escapeLocation } from "../utils/helpers";
-import { IUser } from "../models/user";
+import User, { IUser } from "../models/user";
 import { logActivity } from "../utils/activityLogger";
 import message from "../models/message";
 import PropertyRequest from "../models/propertyRequest";
@@ -268,6 +268,11 @@ export const approvePropertyListing = async (req: Request, res: Response) => {
         return res.status(404).json({ success: false, message: "Property not found" });
     }
 
+    // Normalize the property type to lowercase to avoid enum validation error
+    if (property.type) {
+      property.type = property.type.toLowerCase();
+    }
+
     property.isApproved = true;
     property.approvalStatus = "approved";
     property.rejectionReason = "";
@@ -300,6 +305,45 @@ export const approvePropertyListing = async (req: Request, res: Response) => {
 
     res.status(200).json({ success: true, message: "Property listing approved", property });
 };
+
+
+//Reject property listing and send email to property owner
+export const rejectPropertyListing = async (req: Request, res: Response) => {
+    const propertyId = req.params.id;
+    const { rejectionReason } = req.body;
+    const property = await Property.findById(propertyId);
+    if (!property) {
+        return res.status(404).json({ success: false, message: "Property not found" });
+    }
+
+    property.isApproved = false;
+    property.approvalStatus = "rejected";
+    property.rejectionReason = rejectionReason;
+
+    await property.save();
+
+    const owner = await User.findById(property.user);
+    if (owner && owner.email) {
+        await sendEmail(
+            owner.email,
+            "Property Listing Rejected",
+            `<p>Your property listing titled <strong>${property.title}</strong> has been rejected.</p>\n<p><strong>Reason:</strong> ${rejectionReason}</p>`
+        );
+
+        await Notification.create({
+            user: owner._id,
+            message: `Your property listing titled "${property.title}" has been rejected. Reason: ${rejectionReason}`,
+        });
+    }
+
+    res.status(200).json({ success: true, message: "Property listing rejected", property });
+};
+
+
+
+
+
+
 
 
 

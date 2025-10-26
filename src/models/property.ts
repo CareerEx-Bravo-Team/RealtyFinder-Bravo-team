@@ -35,7 +35,7 @@ const PropertySchema: Schema = new Schema(
     description: { type: String, required: true },
     price: { type: Number, required: true, min: 0 },
     location: { type: String, required: true },
-    type: { type: String, required: true, enum: ["apartment", "house", "land"] },
+    type: { type: String, required: true, enum: ["apartment", "house", "land"], set: (v: string) => v.toLowerCase()},
     images: { type: [String], default: [] },
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     area: { type: String },
@@ -53,6 +53,8 @@ const PropertySchema: Schema = new Schema(
     isApproved: { type: Boolean, default: false },
     approvalStatus: { type: String, enum: ["pending", "approved", "rejected"], default: "pending" },
     rejectionReason: { type: String, default: ""},
+    
+    
   },
   { timestamps: true }
 );
