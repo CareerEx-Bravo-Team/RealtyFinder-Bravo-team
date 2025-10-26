@@ -7,6 +7,7 @@ import {
   deleteProperty,
   toggleVerifyBadge,
   approvePropertyListing,
+  rejectPropertyListing,
   getUserApprovedProperties,
   getUserPendingProperties,
   getUserRejectedProperties
@@ -23,6 +24,9 @@ router.post("/", authMiddleware, upload.array("images", 5), createProperty);
 // -------------------- PROPERTY ADMIN ACTIONS --------------------
 // ✅ Approve property (Admin only)
 router.put("/approve/:id", authMiddleware, adminMiddleware, approvePropertyListing);
+
+// ✅ Reject property (Admin only)
+router.put("/reject/:id", authMiddleware, adminMiddleware, rejectPropertyListing);
 
 // ✅ Toggle verified badge (Admin only)
 router.patch("/:id/toggle-verify", authMiddleware, adminMiddleware, toggleVerifyBadge);
