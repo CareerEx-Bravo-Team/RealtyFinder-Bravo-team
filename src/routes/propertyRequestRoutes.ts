@@ -3,7 +3,10 @@ import {
   approvePropertyRequest,
   createPropertyRequest,
   rejectPropertyRequest,
-  getAllPropertyRequests
+  getAllPropertyRequests,
+  getPendingPropertyRequests,
+  deletePropertyRequest,
+  getRejectedPropertyRequests
 } from "../controllers/propertyRequestController";
 import { authMiddleware, adminMiddleware } from "../middlewares/authMiddleware";
 
@@ -21,5 +24,14 @@ router.put("/reject/:id", authMiddleware, adminMiddleware, rejectPropertyRequest
 
 // Get all property requests
 router.get("/", authMiddleware, adminMiddleware, getAllPropertyRequests);
+
+// Get pending property requests
+router.get("/pending", authMiddleware, adminMiddleware, getPendingPropertyRequests);
+
+// Delete property request
+router.delete("/:id", authMiddleware, adminMiddleware, deletePropertyRequest);
+
+// Get rejected property requests
+router.get("/rejected", authMiddleware, adminMiddleware, getRejectedPropertyRequests);
 
 export default router;
