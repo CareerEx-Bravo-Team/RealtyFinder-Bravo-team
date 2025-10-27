@@ -181,3 +181,54 @@ export const getAllPropertyRequests = async (req: Request, res: Response) => {
   }
 };
 
+
+// Get all pending property requests
+export const getPendingPropertyRequests = async (req: Request, res: Response) => {
+  try {
+    const propertyRequests = await PropertyRequest.find({ status: "pending" }).populate("user");
+    res.json(propertyRequests);
+  } catch (error: any) {
+    console.error("❌ Error getting pending property requests:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while getting pending property requests",
+      error: error.message,
+    });
+  }
+};
+
+
+//Delete property request
+export const deletePropertyRequest = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const propertyRequest = await PropertyRequest.findByIdAndDelete(id);
+    if (!propertyRequest) {
+      return res.status(404).json({ success: false, message: "Property request not found" });
+    }
+    res.json({ success: true, message: "Property request deleted successfully" });
+  } catch (error: any) {
+    console.error("❌ Error deleting property request:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while deleting property request",
+      error: error.message,
+    });
+  }
+};
+
+// Get rejected property requests
+export const getRejectedPropertyRequests = async (req: Request, res: Response) => {
+  try {
+    const propertyRequests = await PropertyRequest.find({ status: "rejected" }).populate("user");
+    res.json(propertyRequests);
+  } catch (error: any) {
+    console.error("❌ Error getting rejected property requests:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while getting rejected property requests",
+      error: error.message,
+    });
+  }
+};
+
