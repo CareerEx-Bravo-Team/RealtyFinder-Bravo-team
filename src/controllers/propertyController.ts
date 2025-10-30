@@ -342,17 +342,11 @@ export const rejectPropertyListing = async (req: Request, res: Response) => {
 
 
 
-
-
-
-
-
-
 // Get approved properties
 export const getUserApprovedProperties = async (req: Request, res: Response) => {
   try {
     const properties = await Property.find({ isApproved: true })
-      .populate("property_owner", "firstName lastName email");
+      .populate("user", "firstName lastName email");
 
     res.status(200).json({ success: true, data: properties });
   } catch (err: any) {
@@ -378,7 +372,7 @@ export const getUserPendingProperties = async (req: Request, res: Response) => {
 export const getUserRejectedProperties = async (req: Request, res: Response) => {
   try { 
     const properties = await Property.find({ approvalStatus: "rejected" })
-      .populate("property_owner", "firstName lastName email");
+      .populate("user", "firstName lastName email");
     res.status(200).json({ success: true, data: properties });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message || "Server error" });
