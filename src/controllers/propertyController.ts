@@ -7,20 +7,31 @@ import message from "../models/message";
 import PropertyRequest from "../models/propertyRequest";
 import { sendEmail } from "../utils/sendEmail";
 import Notification from "../models/notification";
-import cloudinary from "../config/cloudinary";
+import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 
 
 
 // ---------------------- CREATE PROPERTY ----------------------
+// 👤 Define user type
+interface AuthUser {
+  _id: string;
+  role: string;
+  email?: string;
+}
+
+// ===============================
+// 📍 CREATE PROPERTY
+// ===============================
 export const createProperty = async (req: Request, res: Response) => {
   try {
     // ✅ Ensure user is authenticated
-    if (!req.user) {
+    const user = req.user as AuthUser | undefined;
+    if (!user) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const userId = (req.user as IUser)._id;
+    const userId = user._id;
     const {
       title,
       description,
@@ -36,11 +47,22 @@ export const createProperty = async (req: Request, res: Response) => {
       bathrooms,
     } = req.body;
 
-    // ✅ Validate input
-    if (!title || !description || !price || !location || !type || !address || !state || !country || !bedrooms) {
+    // ✅ Validate required fields
+    if (
+      !title ||
+      !description ||
+      !price ||
+      !location ||
+      !type ||
+      !address ||
+      !state ||
+      !country ||
+      !bedrooms
+    ) {
       return res.status(400).json({
         success: false,
-        message: "All required fields (title, description, price, location, type, address, state, country, bedrooms) must be filled.",
+        message:
+          "All required fields (title, description, price, location, type, address, state, country, bedrooms) must be filled.",
       });
     }
 
@@ -52,7 +74,7 @@ export const createProperty = async (req: Request, res: Response) => {
           folder: "realtyfinder/properties",
         });
         imageUrls.push(uploadResult.secure_url);
-        fs.unlinkSync(file.path); // delete local temp file
+        fs.unlinkSync(file.path); // Delete local temp file
       }
     }
 
@@ -70,7 +92,7 @@ export const createProperty = async (req: Request, res: Response) => {
       area,
       rooms: Number(bedrooms),
       features: bathrooms,
-      images: imageUrls, // ✅ now these are Cloudinary URLs
+      images: imageUrls,
       user: userId,
       isApproved: false,
       approvalStatus: "pending",
@@ -78,14 +100,10 @@ export const createProperty = async (req: Request, res: Response) => {
 
     await property.save();
 
-    // ✅ Log user activity (optional)
-    await logActivity(
-      String(userId),
-      `Added new property: ${property.title}`,
-      "success"
-    );
+    // ✅ Log user activity
+    await logActivity(String(userId), `Added new property: ${property.title}`, "success");
 
-    // ✅ Response
+    // ✅ Success response
     return res.status(201).json({
       success: true,
       message: "Property submitted successfully and is pending admin approval",
@@ -93,13 +111,97 @@ export const createProperty = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("❌ Error creating property:", error.message);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Server error while creating property",
       error: error.message,
     });
   }
 };
+
+
+
+// ===============================
+// 🛠️ UPDATE PROPERTY
+// ===============================
+export const updateProperty = async (req: Request, res: Response) => {
+  try {
+    // ✅ Find property by ID
+    const property = await Property.findById(req.params.id);
+    if (!property) {
+      return res.status(404).json({ success: false, message: "Property not found" });
+    }
+
+    // ✅ Check ownership or admin role
+    const user = req.user as AuthUser | undefined;
+    if (!user) {
+      return res.status(401).json({ success: false, message: "Unauthorized - no user attached" });
+    }
+
+    if (user._id.toString() !== property.user.toString() && user.role !== "admin") {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+
+    // ✅ Extract updatable fields
+    const {
+      title,
+      description,
+      price,
+      location,
+      type,
+      address,
+      state,
+      country,
+      postalCode,
+      area,
+      bedrooms,
+      bathrooms,
+    } = req.body;
+
+    // ✅ Handle new image uploads to Cloudinary
+    let newImageUrls: string[] = [];
+    if (req.files && Array.isArray(req.files)) {
+      for (const file of req.files as Express.Multer.File[]) {
+        const uploaded = await cloudinary.uploader.upload(file.path, {
+          folder: "realtyfinder/properties",
+        });
+        newImageUrls.push(uploaded.secure_url);
+        fs.unlinkSync(file.path); // delete local temp file
+      }
+    }
+
+    // ✅ Update property fields
+    if (newImageUrls.length > 0) property.images = newImageUrls;
+    if (title) property.title = title;
+    if (description) property.description = description;
+    if (price) property.price = Number(price);
+    if (location) property.location = location;
+    if (type) property.type = type;
+    if (address) property.address = address;
+    if (state) property.state = state;
+    if (country) property.country = country;
+    if (postalCode) property.postalCode = postalCode;
+    if (area) property.area = area;
+    if (bedrooms) property.rooms = Number(bedrooms);
+    if (bathrooms) property.features = bathrooms;
+
+    await property.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Property updated successfully",
+      property,
+    });
+  } catch (err: any) {
+    console.error("❌ Error updating property:", err.message);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while updating property",
+      error: err.message,
+    });
+  }
+};
+
 
 
 
@@ -166,88 +268,6 @@ export const getPropertyById = async (req: Request, res: Response) => {
   }
 };
 
-
-
-// UPDATE PROPERTY
-
-interface AuthUser {
-  _id: string;
-  role: string;
-}
-
-export const updateProperty = async (req: Request, res: Response) => {
-  try {
-    // 🔹 Find the property by ID
-    const property = await Property.findById(req.params.id);
-    if (!property) {
-      return res.status(404).json({ success: false, message: "Property not found" });
-    }
-
-    // 🔹 Check ownership or admin role
-    const user = req.user as AuthUser | undefined;
-    if (user?._id.toString() !== property.user.toString() && user?.role !== "admin") {
-      return res.status(403).json({ success: false, message: "Forbidden" });
-    }
-
-    // 🔹 Extract updatable fields
-    const {
-      title,
-      description,
-      price,
-      location,
-      type,
-      address,
-      state,
-      country,
-      postalCode,
-      area,
-      bedrooms,
-      bathrooms,
-    } = req.body;
-
-    // 🔹 Handle new image uploads to Cloudinary
-    let newImageUrls: string[] = [];
-    if (req.files && Array.isArray(req.files)) {
-      for (const file of req.files as Express.Multer.File[]) {
-        const uploaded = await cloudinary.uploader.upload(file.path, {
-          folder: "realtyfinder/properties",
-        });
-        newImageUrls.push(uploaded.secure_url);
-        fs.unlinkSync(file.path); // delete local temp file
-      }
-    }
-
-    // 🔹 Update property fields
-    if (newImageUrls.length > 0) property.images = newImageUrls;
-    if (title) property.title = title;
-    if (description) property.description = description;
-    if (price) property.price = Number(price);
-    if (location) property.location = location;
-    if (type) property.type = type;
-    if (address) property.address = address;
-    if (state) property.state = state;
-    if (country) property.country = country;
-    if (postalCode) property.postalCode = postalCode;
-    if (area) property.area = area;
-    if (bedrooms) property.rooms = Number(bedrooms);
-    if (bathrooms) property.features = bathrooms;
-
-    await property.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Property updated successfully",
-      property,
-    });
-  } catch (err: any) {
-    console.error("❌ Error updating property:", err.message);
-    res.status(500).json({
-      success: false,
-      message: "Server error while updating property",
-      error: err.message,
-    });
-  }
-};
 
 
 // ---------------------- DELETE PROPERTY ----------------------
