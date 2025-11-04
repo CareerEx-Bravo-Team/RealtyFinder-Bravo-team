@@ -25,13 +25,11 @@ interface AuthUser {
 // ===============================
 export const createProperty = async (req: Request, res: Response) => {
   try {
-    // ✅ Ensure user is authenticated
     const user = req.user as AuthUser | undefined;
     if (!user) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const userId = user._id;
     const {
       title,
       description,
@@ -47,7 +45,10 @@ export const createProperty = async (req: Request, res: Response) => {
       bathrooms,
     } = req.body;
 
-    // ✅ Validate required fields
+    console.log("🧾 Incoming Body:", req.body);
+    console.log("📸 Uploaded Files:", req.files);
+    console.log("👤 Authenticated User:", user);
+
     if (
       !title ||
       !description ||
@@ -66,19 +67,18 @@ export const createProperty = async (req: Request, res: Response) => {
       });
     }
 
-    // ✅ Upload images to Cloudinary
     let imageUrls: string[] = [];
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files as Express.Multer.File[]) {
+        console.log("⬆️ Uploading to Cloudinary:", file.path);
         const uploadResult = await cloudinary.uploader.upload(file.path, {
           folder: "realtyfinder/properties",
         });
         imageUrls.push(uploadResult.secure_url);
-        fs.unlinkSync(file.path); // Delete local temp file
+        fs.unlinkSync(file.path);
       }
     }
 
-    // ✅ Create property
     const property = new Property({
       title,
       description,
@@ -93,31 +93,29 @@ export const createProperty = async (req: Request, res: Response) => {
       rooms: Number(bedrooms),
       features: bathrooms,
       images: imageUrls,
-      user: userId,
+      user: user._id,
       isApproved: false,
       approvalStatus: "pending",
     });
 
     await property.save();
+    console.log("✅ Property created successfully:", property._id);
 
-    // ✅ Log user activity
-    await logActivity(String(userId), `Added new property: ${property.title}`, "success");
-
-    // ✅ Success response
     return res.status(201).json({
       success: true,
       message: "Property submitted successfully and is pending admin approval",
       property,
     });
   } catch (error: any) {
-    console.error("❌ Error creating property:", error.message);
+    console.error("❌ FULL ERROR STACK:", error);
     return res.status(500).json({
       success: false,
       message: "Server error while creating property",
-      error: error.message,
+      error: error.message || error,
     });
   }
 };
+
 
 
 
