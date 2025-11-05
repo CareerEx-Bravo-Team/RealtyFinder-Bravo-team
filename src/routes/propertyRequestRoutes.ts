@@ -23,15 +23,15 @@ router.put("/approve/:id", authMiddleware, adminMiddleware, approvePropertyReque
 router.put("/reject/:id", authMiddleware, adminMiddleware, rejectPropertyRequest);
 
 // Get all property requests
-router.get("/", authMiddleware, adminMiddleware, getAllPropertyRequests);
+router.get("/", authMiddleware, getAllPropertyRequests);
 
 // Get pending property requests
-router.get("/pending", authMiddleware, adminMiddleware, getPendingPropertyRequests);
+router.get("/pending", authMiddleware, getPendingPropertyRequests);
 
 // Delete property request
 router.delete("/:id", authMiddleware, adminMiddleware, deletePropertyRequest);
 
 // Get rejected property requests
-router.get("/rejected", authMiddleware, adminMiddleware, getRejectedPropertyRequests);
+router.get("/rejected", authMiddleware, getRejectedPropertyRequests);
 
 export default router;
