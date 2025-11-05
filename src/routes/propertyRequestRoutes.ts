@@ -1,8 +1,8 @@
 import express from "express";
 import {
-  approvePropertyRequest,
+  approveBuyerPropertyRequest,
   createPropertyRequest,
-  rejectPropertyRequest,
+  rejectBuyerPropertyRequest,
   getAllPropertyRequests,
   getPendingPropertyRequests,
   deletePropertyRequest,
@@ -17,10 +17,10 @@ const router = express.Router();
 router.post("/create", authMiddleware, createPropertyRequest);
 
 // Admin approves request
-router.put("/approve/:id", authMiddleware, adminMiddleware, approvePropertyRequest);
+router.put("/approve/:id", authMiddleware, adminMiddleware, approveBuyerPropertyRequest);
 
 // Admin rejects request
-router.put("/reject/:id", authMiddleware, adminMiddleware, rejectPropertyRequest);
+router.put("/reject/:id", authMiddleware, adminMiddleware, rejectBuyerPropertyRequest);
 
 // Get all property requests
 router.get("/", authMiddleware, getAllPropertyRequests);
