@@ -12,7 +12,7 @@ import fs from "fs";
 
 
 
-// ---------------------- CREATE PROPERTY ----------------------
+//  CREATE PROPERTY 
 // 👤 Define user type
 interface AuthUser {
   _id: string;
@@ -52,7 +52,17 @@ export const createProperty = async (req: Request, res: Response) => {
     console.log("👤 User Info:", user);
 
     // ✅ Basic validation
-    if (!title || !description || !price || !location || !type || !address || !state || !country || !bedrooms) {
+    if (
+      !title ||
+      !description ||
+      !price ||
+      !location ||
+      !type ||
+      !address ||
+      !state ||
+      !country ||
+      !bedrooms
+    ) {
       return res.status(400).json({
         success: false,
         message: "All required fields must be filled.",
@@ -61,22 +71,30 @@ export const createProperty = async (req: Request, res: Response) => {
 
     // ✅ Upload images to Cloudinary
     let imageUrls: string[] = [];
-    if (req.files && Array.isArray(req.files)) {
+
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      console.log(`⬆️ Uploading ${req.files.length} file(s) to Cloudinary...`);
+
       for (const file of req.files as Express.Multer.File[]) {
         try {
-          console.log("⬆️ Uploading file to Cloudinary:", file.path);
-          const result = await cloudinary.uploader.upload(file.path, {
+          const uploadResult = await cloudinary.uploader.upload(file.path, {
             folder: "realtyfinder/properties",
+            resource_type: "image",
           });
-          imageUrls.push(result.secure_url);
+          console.log("✅ Cloudinary Upload Success:", uploadResult.secure_url);
+          imageUrls.push(uploadResult.secure_url);
+
+          // Remove local temp file after upload
           fs.unlinkSync(file.path);
         } catch (uploadErr: any) {
-          console.error("❌ Cloudinary Upload Error:", uploadErr);
+          console.error("❌ Cloudinary Upload Error:", uploadErr.message || uploadErr);
         }
       }
+    } else {
+      console.warn("⚠️ No images uploaded.");
     }
 
-    // ✅ Create property in DB
+    // ✅ Create and save property in MongoDB
     const property = new Property({
       title,
       description,
@@ -89,7 +107,7 @@ export const createProperty = async (req: Request, res: Response) => {
       postalCode,
       area,
       rooms: Number(bedrooms),
-      features: bathrooms,
+      features: bathrooms ? [bathrooms] : [],
       images: imageUrls,
       user: user._id,
       isApproved: false,
@@ -98,8 +116,7 @@ export const createProperty = async (req: Request, res: Response) => {
 
     await property.save();
 
-    // (Optional logging)
-    // await logActivity(String(user._id), `Added new property: ${property.title}`, "success");
+    console.log("🏠 Property Created:", property);
 
     return res.status(201).json({
       success: true,
@@ -108,14 +125,14 @@ export const createProperty = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("❌ ERROR OBJECT:", error);
-    console.error("❌ ERROR STRINGIFIED:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
     return res.status(500).json({
       success: false,
       message: "Server error while creating property",
-      error: error?.message || error?.toString() || "Unknown error",
+      error: error?.message || "Unknown error",
     });
   }
 };
+
 
 
 
@@ -132,14 +149,15 @@ export const updateProperty = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: "Property not found" });
     }
 
-    // ✅ Check ownership or admin role
+    // ✅ Check authenticated user
     const user = req.user as AuthUser | undefined;
     if (!user) {
       return res.status(401).json({ success: false, message: "Unauthorized - no user attached" });
     }
 
+    // ✅ Only owner or admin can update
     if (user._id.toString() !== property.user.toString() && user.role !== "admin") {
-      return res.status(403).json({ success: false, message: "Forbidden" });
+      return res.status(403).json({ success: false, message: "Forbidden - not allowed to update" });
     }
 
     // ✅ Extract updatable fields
@@ -158,19 +176,27 @@ export const updateProperty = async (req: Request, res: Response) => {
       bathrooms,
     } = req.body;
 
-    // ✅ Handle new image uploads to Cloudinary
+    console.log("📥 Update Request Body:", req.body);
+    console.log("📸 Uploaded Files:", req.files);
+
+    // ✅ Upload new images to Cloudinary (if any)
     let newImageUrls: string[] = [];
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files as Express.Multer.File[]) {
-        const uploaded = await cloudinary.uploader.upload(file.path, {
-          folder: "realtyfinder/properties",
-        });
-        newImageUrls.push(uploaded.secure_url);
-        fs.unlinkSync(file.path); // delete local temp file
+        try {
+          console.log("⬆️ Uploading file to Cloudinary:", file.path);
+          const result = await cloudinary.uploader.upload(file.path, {
+            folder: "realtyfinder/properties",
+          });
+          newImageUrls.push(result.secure_url);
+          fs.unlinkSync(file.path); // Remove local temp file
+        } catch (uploadErr: any) {
+          console.error("❌ Cloudinary Upload Error:", uploadErr);
+        }
       }
     }
 
-    // ✅ Update property fields
+    // ✅ Update property fields dynamically
     if (newImageUrls.length > 0) property.images = newImageUrls;
     if (title) property.title = title;
     if (description) property.description = description;
@@ -189,15 +215,15 @@ export const updateProperty = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      message: "Property updated successfully",
+      message: "✅ Property updated successfully.",
       property,
     });
   } catch (err: any) {
-    console.error("❌ Error updating property:", err.message);
+    console.error("❌ ERROR OBJECT:", err);
     return res.status(500).json({
       success: false,
       message: "Server error while updating property",
-      error: err.message,
+      error: err?.message || "Unknown error",
     });
   }
 };
