@@ -26,7 +26,6 @@ interface AuthUser {
 
 export const createProperty = async (req: Request, res: Response) => {
   try {
-    // ✅ Ensure user is authenticated
     const user = req.user as IUser | undefined;
     if (!user) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -45,13 +44,15 @@ export const createProperty = async (req: Request, res: Response) => {
       area,
       bedrooms,
       bathrooms,
+      features,
+      images, // ✅ accept image URLs from frontend
     } = req.body;
 
     console.log("📥 Incoming Data:", req.body);
     console.log("📸 Uploaded Files:", req.files);
     console.log("👤 User Info:", user);
 
-    // ✅ Basic validation
+    // ✅ Validate required fields
     if (
       !title ||
       !description ||
@@ -69,12 +70,12 @@ export const createProperty = async (req: Request, res: Response) => {
       });
     }
 
-    // ✅ Upload images to Cloudinary
+    // ✅ Handle image uploads or URLs
     let imageUrls: string[] = [];
 
+    // Case 1: User uploaded raw files
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
       console.log(`⬆️ Uploading ${req.files.length} file(s) to Cloudinary...`);
-
       for (const file of req.files as Express.Multer.File[]) {
         try {
           const uploadResult = await cloudinary.uploader.upload(file.path, {
@@ -83,15 +84,22 @@ export const createProperty = async (req: Request, res: Response) => {
           });
           console.log("✅ Cloudinary Upload Success:", uploadResult.secure_url);
           imageUrls.push(uploadResult.secure_url);
-
-          // Remove local temp file after upload
           fs.unlinkSync(file.path);
         } catch (uploadErr: any) {
           console.error("❌ Cloudinary Upload Error:", uploadErr.message || uploadErr);
         }
       }
-    } else {
-      console.warn("⚠️ No images uploaded.");
+    }
+
+    // Case 2: Frontend already uploaded images to Cloudinary
+    else if (images && Array.isArray(images) && images.length > 0) {
+      console.log("🖼️ Using image URLs from frontend upload.");
+      imageUrls = images;
+    }
+
+    // If no images at all
+    else {
+      console.warn("⚠️ No images provided.");
     }
 
     // ✅ Create and save property in MongoDB
@@ -107,8 +115,9 @@ export const createProperty = async (req: Request, res: Response) => {
       postalCode,
       area,
       rooms: Number(bedrooms),
-      features: bathrooms ? [bathrooms] : [],
-      images: imageUrls,
+      bathrooms: Number(bathrooms),
+      features: Array.isArray(features) ? features : [],
+      images: imageUrls, // ✅ now this will not be empty
       user: user._id,
       isApproved: false,
       approvalStatus: "pending",
@@ -120,7 +129,7 @@ export const createProperty = async (req: Request, res: Response) => {
 
     return res.status(201).json({
       success: true,
-      message: "✅ Property submitted successfully and pending admin approval.",
+      message: "Property submitted successfully and is pending admin approval",
       property,
     });
   } catch (error: any) {
@@ -132,6 +141,7 @@ export const createProperty = async (req: Request, res: Response) => {
     });
   }
 };
+
 
 
 
