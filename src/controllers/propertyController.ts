@@ -7,7 +7,7 @@ import message from "../models/message";
 import PropertyRequest from "../models/propertyRequest";
 import { sendEmail } from "../utils/sendEmail";
 import Notification from "../models/notification";
-import { v2 as cloudinary } from "cloudinary";
+import cloudinary from "../config/cloudinary";
 import fs from "fs";
 
 
@@ -23,9 +23,11 @@ interface AuthUser {
 // ===============================
 // 📍 CREATE PROPERTY
 // ===============================
+
 export const createProperty = async (req: Request, res: Response) => {
   try {
-    const user = req.user as AuthUser | undefined;
+    // ✅ Ensure user is authenticated
+    const user = req.user as IUser | undefined;
     if (!user) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
@@ -45,40 +47,36 @@ export const createProperty = async (req: Request, res: Response) => {
       bathrooms,
     } = req.body;
 
-    console.log("🧾 Incoming Body:", req.body);
+    console.log("📥 Incoming Data:", req.body);
     console.log("📸 Uploaded Files:", req.files);
-    console.log("👤 Authenticated User:", user);
+    console.log("👤 User Info:", user);
 
-    if (
-      !title ||
-      !description ||
-      !price ||
-      !location ||
-      !type ||
-      !address ||
-      !state ||
-      !country ||
-      !bedrooms
-    ) {
+    // ✅ Basic validation
+    if (!title || !description || !price || !location || !type || !address || !state || !country || !bedrooms) {
       return res.status(400).json({
         success: false,
-        message:
-          "All required fields (title, description, price, location, type, address, state, country, bedrooms) must be filled.",
+        message: "All required fields must be filled.",
       });
     }
 
+    // ✅ Upload images to Cloudinary
     let imageUrls: string[] = [];
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files as Express.Multer.File[]) {
-        console.log("⬆️ Uploading to Cloudinary:", file.path);
-        const uploadResult = await cloudinary.uploader.upload(file.path, {
-          folder: "realtyfinder/properties",
-        });
-        imageUrls.push(uploadResult.secure_url);
-        fs.unlinkSync(file.path);
+        try {
+          console.log("⬆️ Uploading file to Cloudinary:", file.path);
+          const result = await cloudinary.uploader.upload(file.path, {
+            folder: "realtyfinder/properties",
+          });
+          imageUrls.push(result.secure_url);
+          fs.unlinkSync(file.path);
+        } catch (uploadErr: any) {
+          console.error("❌ Cloudinary Upload Error:", uploadErr);
+        }
       }
     }
 
+    // ✅ Create property in DB
     const property = new Property({
       title,
       description,
@@ -99,22 +97,26 @@ export const createProperty = async (req: Request, res: Response) => {
     });
 
     await property.save();
-    console.log("✅ Property created successfully:", property._id);
+
+    // (Optional logging)
+    // await logActivity(String(user._id), `Added new property: ${property.title}`, "success");
 
     return res.status(201).json({
       success: true,
-      message: "Property submitted successfully and is pending admin approval",
+      message: "✅ Property submitted successfully and pending admin approval.",
       property,
     });
   } catch (error: any) {
-    console.error("❌ FULL ERROR STACK:", error);
+    console.error("❌ ERROR OBJECT:", error);
+    console.error("❌ ERROR STRINGIFIED:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
     return res.status(500).json({
       success: false,
       message: "Server error while creating property",
-      error: error.message || error,
+      error: error?.message || error?.toString() || "Unknown error",
     });
   }
 };
+
 
 
 
