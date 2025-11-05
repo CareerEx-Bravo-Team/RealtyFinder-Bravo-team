@@ -58,109 +58,115 @@ export const createPropertyRequest = async (req: Request, res: Response) => {
 
 
 // Approved Property Requests
-export const approvePropertyRequest = async (req: Request, res: Response) => {
+export const approveBuyerPropertyRequest = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { requestId } = req.params;
+    console.log("Property Request ID received:", requestId);
 
-    console.log("Property ID received:", id);
-
-
-    const property = await Property.findById(id);
-    if (!property) {
-      return res.status(404).json({ success: false, message: "Property not found" });
-    }   
-
-    property.isApproved = true;
-    property.approvalStatus = "approved";
-    property.rejectionReason = "";
-    await property.save();
-
-    // Find all buyer request that match this property
-    const matchingRequests = await PropertyRequest.find({
-        status: "approved",
-        propertyType: property.type,
-        location: property.location,
-        minPrice: { $lte: property.price },
-        maxPrice: { $gte: property.price },
-    }).populate("user");
-
-    
-    for (const reqItem of matchingRequests) {
-      const user = reqItem.user as any; // Ensure user is treated as a populated document
-      if (user && user.email) {
-        // Send email
-        await sendEmail(
-          user.email,
-          "New Property Alert",
-          `<p>A new ${property.type} in ${property.location} matches your saved request. Check it out on RealtyFinder!</p>`
-        );
-
-        //save notification
-        await Notification.create({
-          user: user._id,
-          message: `New ${property.type} available in ${property.location} that matches your request.`,
-        });
-      }
+    // ✅ Find the property request by its ID
+    const propertyRequest = await PropertyRequest.findById(requestId).populate("user");
+    if (!propertyRequest) {
+      return res.status(404).json({ success: false, message: "Property request not found" });
     }
 
-    res.json({
+    // ✅ Check if already approved
+    if (propertyRequest.status === "approved") {
+      return res.status(400).json({ success: false, message: "Request already approved" });
+    }
+
+    // ✅ Mark as approved
+    propertyRequest.status = "approved";
+    await propertyRequest.save();
+
+    const user = propertyRequest.user as any;
+
+    // ✅ Notify user via email
+    if (user && user.email) {
+      await sendEmail(
+        user.email,
+        "Property Request Approved",
+        `
+          <h3>Your property request has been approved!</h3>
+          <p>We’ve approved your request for a ${propertyRequest.propertyType} in ${propertyRequest.location}.</p>
+          <p>We’ll notify you as soon as matching listings are available.</p>
+          <p>Thank you for using RealtyFinder.</p>
+        `
+      );
+    }
+
+    // ✅ Save notification
+    await Notification.create({
+      user: user._id,
+      message: `Your property request for a ${propertyRequest.propertyType} in ${propertyRequest.location} has been approved.`,
+    });
+
+    return res.json({
       success: true,
-      message: "Property approved and alerts sent to matching users.",
+      message: "Property request approved successfully",
+      data: propertyRequest,
     });
   } catch (error: any) {
-    console.error(error);
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    console.error("❌ Error approving property request:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while approving property request",
+      error: error.message,
+    });
   }
 };
 
 
 // Reject Property (Admin only)
-export const rejectPropertyRequest = async (req: Request, res: Response) => {
+export const rejectBuyerPropertyRequest = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params; // Use consistent param name like /property/reject/:id
+    const { requestId } = req.params;
     const { reason } = req.body;
 
-    // Find property
-    const property = await Property.findById(id);
-    if (!property) {
-      return res.status(404).json({ success: false, message: "Property not found" });
+    // ✅ Find the property request
+    const propertyRequest = await PropertyRequest.findById(requestId).populate("user");
+    if (!propertyRequest) {
+      return res.status(404).json({ success: false, message: "Property request not found" });
     }
 
-    // Update status
-    property.isApproved = false;
-    property.approvalStatus = "rejected";
-    property.rejectionReason = reason || "No reason provided";
-    await property.save();
+    // ✅ Update request status
+    propertyRequest.status = "rejected";
+    (propertyRequest as any).rejectionReason = reason || "No reason provided";
+    await propertyRequest.save();
 
-    // Find property owner
-    const owner = await User.findById(property.user);
-    if (owner && owner.email) {
-      // Send email notification
+    const user = propertyRequest.user as any;
+
+    // ✅ Notify requester via email
+    if (user && user.email) {
       await sendEmail(
-        owner.email,
-        "Property Listing Rejected",
-        `<p>Your property listing titled <strong>${property.title}</strong> has been rejected.</p>
-         <p><strong>Reason:</strong> ${property.rejectionReason}</p>`
+        user.email,
+        "Property Request Rejected",
+        `
+          <h3>Your property request has been rejected.</h3>
+          <p><strong>Property Type:</strong> ${propertyRequest.propertyType}</p>
+          <p><strong>Location:</strong> ${propertyRequest.location}</p>
+          <p><strong>Reason:</strong> ${reason || "No reason provided"}</p>
+          <p>If you believe this was an error, you may contact our support team.</p>
+        `
       );
-
-      // Save in-app notification
-      await Notification.create({
-        user: owner._id,
-        message: `Your property "${property.title}" was rejected. Reason: ${property.rejectionReason}`,
-      });
     }
 
-    // Response to admin
-    res.json({
-      success: true,
-      message: `Property "${property.title}" rejected successfully.`,
+    // ✅ Save in-app notification
+    await Notification.create({
+      user: user._id,
+      message: `Your property request for a ${propertyRequest.propertyType} in ${propertyRequest.location} was rejected. Reason: ${reason || "No reason provided"}`,
     });
 
+    // ✅ Response to admin
+    return res.json({
+      success: true,
+      message: `Property request for "${propertyRequest.propertyType}" rejected successfully.`,
+      data: propertyRequest,
+    });
   } catch (error: any) {
-    console.error("❌ Error rejecting property:", error);
-    res.status(500).json({
+    console.error("❌ Error rejecting property request:", error);
+    return res.status(500).json({
       success: false,
-      message: "Server error while rejecting property",
+      message: "Server error while rejecting property request",
       error: error.message,
     });
   }
