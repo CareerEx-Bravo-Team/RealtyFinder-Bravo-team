@@ -149,14 +149,15 @@ export const updateProperty = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: "Property not found" });
     }
 
-    // ✅ Check ownership or admin role
+    // ✅ Check authenticated user
     const user = req.user as AuthUser | undefined;
     if (!user) {
       return res.status(401).json({ success: false, message: "Unauthorized - no user attached" });
     }
 
+    // ✅ Only owner or admin can update
     if (user._id.toString() !== property.user.toString() && user.role !== "admin") {
-      return res.status(403).json({ success: false, message: "Forbidden" });
+      return res.status(403).json({ success: false, message: "Forbidden - not allowed to update" });
     }
 
     // ✅ Extract updatable fields
@@ -175,19 +176,27 @@ export const updateProperty = async (req: Request, res: Response) => {
       bathrooms,
     } = req.body;
 
-    // ✅ Handle new image uploads to Cloudinary
+    console.log("📥 Update Request Body:", req.body);
+    console.log("📸 Uploaded Files:", req.files);
+
+    // ✅ Upload new images to Cloudinary (if any)
     let newImageUrls: string[] = [];
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files as Express.Multer.File[]) {
-        const uploaded = await cloudinary.uploader.upload(file.path, {
-          folder: "realtyfinder/properties",
-        });
-        newImageUrls.push(uploaded.secure_url);
-        fs.unlinkSync(file.path); // delete local temp file
+        try {
+          console.log("⬆️ Uploading file to Cloudinary:", file.path);
+          const result = await cloudinary.uploader.upload(file.path, {
+            folder: "realtyfinder/properties",
+          });
+          newImageUrls.push(result.secure_url);
+          fs.unlinkSync(file.path); // Remove local temp file
+        } catch (uploadErr: any) {
+          console.error("❌ Cloudinary Upload Error:", uploadErr);
+        }
       }
     }
 
-    // ✅ Update property fields
+    // ✅ Update property fields dynamically
     if (newImageUrls.length > 0) property.images = newImageUrls;
     if (title) property.title = title;
     if (description) property.description = description;
@@ -206,15 +215,15 @@ export const updateProperty = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      message: "Property updated successfully",
+      message: "✅ Property updated successfully.",
       property,
     });
   } catch (err: any) {
-    console.error("❌ Error updating property:", err.message);
+    console.error("❌ ERROR OBJECT:", err);
     return res.status(500).json({
       success: false,
       message: "Server error while updating property",
-      error: err.message,
+      error: err?.message || "Unknown error",
     });
   }
 };
