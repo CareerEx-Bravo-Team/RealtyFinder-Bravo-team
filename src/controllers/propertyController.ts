@@ -143,11 +143,6 @@ export const createProperty = async (req: Request, res: Response) => {
 };
 
 
-
-
-
-
-
 // ===============================
 // 🛠️ UPDATE PROPERTY
 // ===============================
@@ -237,10 +232,6 @@ export const updateProperty = async (req: Request, res: Response) => {
     });
   }
 };
-
-
-
-
 
 
 
