@@ -12,7 +12,7 @@ import fs from "fs";
 
 
 
-// ---------------------- CREATE PROPERTY ----------------------
+//  CREATE PROPERTY 
 // 👤 Define user type
 interface AuthUser {
   _id: string;
