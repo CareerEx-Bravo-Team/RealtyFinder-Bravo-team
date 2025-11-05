@@ -7,7 +7,7 @@ import message from "../models/message";
 import PropertyRequest from "../models/propertyRequest";
 import { sendEmail } from "../utils/sendEmail";
 import Notification from "../models/notification";
-import { v2 as cloudinary } from "cloudinary";
+import cloudinary from "../config/cloudinary";
 import fs from "fs";
 
 
@@ -23,15 +23,15 @@ interface AuthUser {
 // ===============================
 // 📍 CREATE PROPERTY
 // ===============================
+
 export const createProperty = async (req: Request, res: Response) => {
   try {
     // ✅ Ensure user is authenticated
-    const user = req.user as AuthUser | undefined;
+    const user = req.user as IUser | undefined;
     if (!user) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const userId = user._id;
     const {
       title,
       description,
@@ -47,22 +47,15 @@ export const createProperty = async (req: Request, res: Response) => {
       bathrooms,
     } = req.body;
 
-    // ✅ Validate required fields
-    if (
-      !title ||
-      !description ||
-      !price ||
-      !location ||
-      !type ||
-      !address ||
-      !state ||
-      !country ||
-      !bedrooms
-    ) {
+    console.log("📥 Incoming Data:", req.body);
+    console.log("📸 Uploaded Files:", req.files);
+    console.log("👤 User Info:", user);
+
+    // ✅ Basic validation
+    if (!title || !description || !price || !location || !type || !address || !state || !country || !bedrooms) {
       return res.status(400).json({
         success: false,
-        message:
-          "All required fields (title, description, price, location, type, address, state, country, bedrooms) must be filled.",
+        message: "All required fields must be filled.",
       });
     }
 
@@ -70,15 +63,20 @@ export const createProperty = async (req: Request, res: Response) => {
     let imageUrls: string[] = [];
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files as Express.Multer.File[]) {
-        const uploadResult = await cloudinary.uploader.upload(file.path, {
-          folder: "realtyfinder/properties",
-        });
-        imageUrls.push(uploadResult.secure_url);
-        fs.unlinkSync(file.path); // Delete local temp file
+        try {
+          console.log("⬆️ Uploading file to Cloudinary:", file.path);
+          const result = await cloudinary.uploader.upload(file.path, {
+            folder: "realtyfinder/properties",
+          });
+          imageUrls.push(result.secure_url);
+          fs.unlinkSync(file.path);
+        } catch (uploadErr: any) {
+          console.error("❌ Cloudinary Upload Error:", uploadErr);
+        }
       }
     }
 
-    // ✅ Create property
+    // ✅ Create property in DB
     const property = new Property({
       title,
       description,
@@ -93,31 +91,33 @@ export const createProperty = async (req: Request, res: Response) => {
       rooms: Number(bedrooms),
       features: bathrooms,
       images: imageUrls,
-      user: userId,
+      user: user._id,
       isApproved: false,
       approvalStatus: "pending",
     });
 
     await property.save();
 
-    // ✅ Log user activity
-    await logActivity(String(userId), `Added new property: ${property.title}`, "success");
+    // (Optional logging)
+    // await logActivity(String(user._id), `Added new property: ${property.title}`, "success");
 
-    // ✅ Success response
     return res.status(201).json({
       success: true,
-      message: "Property submitted successfully and is pending admin approval",
+      message: "✅ Property submitted successfully and pending admin approval.",
       property,
     });
   } catch (error: any) {
-    console.error("❌ Error creating property:", error.message);
+    console.error("❌ ERROR OBJECT:", error);
+    console.error("❌ ERROR STRINGIFIED:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
     return res.status(500).json({
       success: false,
       message: "Server error while creating property",
-      error: error.message,
+      error: error?.message || error?.toString() || "Unknown error",
     });
   }
 };
+
+
 
 
 
