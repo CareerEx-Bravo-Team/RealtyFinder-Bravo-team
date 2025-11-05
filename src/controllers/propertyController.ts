@@ -52,7 +52,17 @@ export const createProperty = async (req: Request, res: Response) => {
     console.log("👤 User Info:", user);
 
     // ✅ Basic validation
-    if (!title || !description || !price || !location || !type || !address || !state || !country || !bedrooms) {
+    if (
+      !title ||
+      !description ||
+      !price ||
+      !location ||
+      !type ||
+      !address ||
+      !state ||
+      !country ||
+      !bedrooms
+    ) {
       return res.status(400).json({
         success: false,
         message: "All required fields must be filled.",
@@ -61,22 +71,30 @@ export const createProperty = async (req: Request, res: Response) => {
 
     // ✅ Upload images to Cloudinary
     let imageUrls: string[] = [];
-    if (req.files && Array.isArray(req.files)) {
+
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      console.log(`⬆️ Uploading ${req.files.length} file(s) to Cloudinary...`);
+
       for (const file of req.files as Express.Multer.File[]) {
         try {
-          console.log("⬆️ Uploading file to Cloudinary:", file.path);
-          const result = await cloudinary.uploader.upload(file.path, {
+          const uploadResult = await cloudinary.uploader.upload(file.path, {
             folder: "realtyfinder/properties",
+            resource_type: "image",
           });
-          imageUrls.push(result.secure_url);
+          console.log("✅ Cloudinary Upload Success:", uploadResult.secure_url);
+          imageUrls.push(uploadResult.secure_url);
+
+          // Remove local temp file after upload
           fs.unlinkSync(file.path);
         } catch (uploadErr: any) {
-          console.error("❌ Cloudinary Upload Error:", uploadErr);
+          console.error("❌ Cloudinary Upload Error:", uploadErr.message || uploadErr);
         }
       }
+    } else {
+      console.warn("⚠️ No images uploaded.");
     }
 
-    // ✅ Create property in DB
+    // ✅ Create and save property in MongoDB
     const property = new Property({
       title,
       description,
@@ -89,7 +107,7 @@ export const createProperty = async (req: Request, res: Response) => {
       postalCode,
       area,
       rooms: Number(bedrooms),
-      features: bathrooms,
+      features: bathrooms ? [bathrooms] : [],
       images: imageUrls,
       user: user._id,
       isApproved: false,
@@ -98,8 +116,7 @@ export const createProperty = async (req: Request, res: Response) => {
 
     await property.save();
 
-    // (Optional logging)
-    // await logActivity(String(user._id), `Added new property: ${property.title}`, "success");
+    console.log("🏠 Property Created:", property);
 
     return res.status(201).json({
       success: true,
@@ -108,14 +125,14 @@ export const createProperty = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("❌ ERROR OBJECT:", error);
-    console.error("❌ ERROR STRINGIFIED:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
     return res.status(500).json({
       success: false,
       message: "Server error while creating property",
-      error: error?.message || error?.toString() || "Unknown error",
+      error: error?.message || "Unknown error",
     });
   }
 };
+
 
 
 
