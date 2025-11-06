@@ -6,7 +6,8 @@ import {
   getAllPropertyRequests,
   getPendingPropertyRequests,
   deletePropertyRequest,
-  getRejectedPropertyRequests
+  getRejectedPropertyRequests,
+  getApprovedPropertyRequests
 } from "../controllers/propertyRequestController";
 import { authMiddleware, adminMiddleware } from "../middlewares/authMiddleware";
 
@@ -33,5 +34,8 @@ router.delete("/:id", authMiddleware, adminMiddleware, deletePropertyRequest);
 
 // Get rejected property requests
 router.get("/rejected", authMiddleware, getRejectedPropertyRequests);
+
+// Get approved property requests
+router.get("/approved", authMiddleware, getApprovedPropertyRequests);
 
 export default router;

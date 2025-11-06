@@ -279,6 +279,21 @@ export const updatePropertyRequestStatus = async (req: Request, res: Response) =
 
 
 
+// Get all users by role
+export const getAllUsersByRole = async (req: Request, res: Response) => {
+    try {
+        const { role } = req.query;
+
+        const users = await User.find({ role: role }).select("-password");
+        res.status(200).json({ success: true, data: users });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message || "Server error" });
+    }
+};
+
+
+
+
 
 
 
