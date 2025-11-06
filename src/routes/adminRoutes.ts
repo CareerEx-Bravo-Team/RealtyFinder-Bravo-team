@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { getDashboardStats, getAllUsers, getUserById, updateUser, deleteUser, getRecentActivities, rejectPropertyListing, getPendingProperties, getApprovedProperties, getRejectedProperties } from "../controllers/adminController";
+import { getDashboardStats, getAllUsers, getUserById, updateUser, deleteUser, getRecentActivities, rejectPropertyListing, getPendingProperties, getApprovedProperties, getRejectedProperties, getAllUsersByRole } from "../controllers/adminController";
 import { authMiddleware, adminMiddleware } from "../middlewares/authMiddleware";
+
 
 
 const router = Router();
@@ -16,6 +17,7 @@ router.get("/users/:id", authMiddleware, adminMiddleware, getUserById);
 router.put("/users/:id", authMiddleware, adminMiddleware, updateUser);
 router.delete("/users/:id", authMiddleware, adminMiddleware, deleteUser);
 router.get("/activities", authMiddleware, adminMiddleware, getRecentActivities);
+router.get("/users/:role", authMiddleware, adminMiddleware, getAllUsersByRole);
 
 
 // Property Management Routes

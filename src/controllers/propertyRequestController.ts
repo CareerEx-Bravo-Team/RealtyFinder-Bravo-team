@@ -60,49 +60,43 @@ export const createPropertyRequest = async (req: Request, res: Response) => {
 // Approved Property Requests
 export const approveBuyerPropertyRequest = async (req: Request, res: Response) => {
   try {
-    const { requestId } = req.params;
-    console.log("Property Request ID received:", requestId);
+    const { id } = req.params;
 
-    // ✅ Find the property request by its ID
-    const propertyRequest = await PropertyRequest.findById(requestId).populate("user");
+    // 🔍 Find request by ID
+    const propertyRequest = await PropertyRequest.findById(id).populate("user");
     if (!propertyRequest) {
       return res.status(404).json({ success: false, message: "Property request not found" });
     }
 
-    // ✅ Check if already approved
-    if (propertyRequest.status === "approved") {
-      return res.status(400).json({ success: false, message: "Request already approved" });
-    }
-
-    // ✅ Mark as approved
+    // 🟢 Approve the request
     propertyRequest.status = "approved";
+    propertyRequest.rejectionReason = "";
     await propertyRequest.save();
 
     const user = propertyRequest.user as any;
 
-    // ✅ Notify user via email
+    // 📧 Send email notification
     if (user && user.email) {
       await sendEmail(
         user.email,
-        "Property Request Approved",
+        "Your Property Request Has Been Approved",
         `
-          <h3>Your property request has been approved!</h3>
-          <p>We’ve approved your request for a ${propertyRequest.propertyType} in ${propertyRequest.location}.</p>
-          <p>We’ll notify you as soon as matching listings are available.</p>
-          <p>Thank you for using RealtyFinder.</p>
+          <h3>Good news!</h3>
+          <p>Your property request for a <strong>${propertyRequest.propertyType}</strong> in <strong>${propertyRequest.location}</strong> has been approved.</p>
+          <p>We’ll notify you when a matching property becomes available.</p>
         `
       );
     }
 
-    // ✅ Save notification
+    // 🔔 Create in-app notification
     await Notification.create({
       user: user._id,
-      message: `Your property request for a ${propertyRequest.propertyType} in ${propertyRequest.location} has been approved.`,
+      message: `Your property request for ${propertyRequest.propertyType} in ${propertyRequest.location} has been approved.`,
     });
 
-    return res.json({
+    return res.status(200).json({
       success: true,
-      message: "Property request approved successfully",
+      message: "Property request approved successfully.",
       data: propertyRequest,
     });
   } catch (error: any) {
@@ -119,11 +113,11 @@ export const approveBuyerPropertyRequest = async (req: Request, res: Response) =
 // Reject Property (Admin only)
 export const rejectBuyerPropertyRequest = async (req: Request, res: Response) => {
   try {
-    const { requestId } = req.params;
+    const { id } = req.params;
     const { reason } = req.body;
 
     // ✅ Find the property request
-    const propertyRequest = await PropertyRequest.findById(requestId).populate("user");
+    const propertyRequest = await PropertyRequest.findById(id).populate("user");
     if (!propertyRequest) {
       return res.status(404).json({ success: false, message: "Property request not found" });
     }
@@ -233,6 +227,22 @@ export const getRejectedPropertyRequests = async (req: Request, res: Response) =
     res.status(500).json({
       success: false,
       message: "Server error while getting rejected property requests",
+      error: error.message,
+    });
+  }
+};
+
+
+// Get approved property requests
+export const getApprovedPropertyRequests = async (req: Request, res: Response) => {
+  try {
+    const propertyRequests = await PropertyRequest.find({ status: "approved" }).populate("user");
+    res.json(propertyRequests);
+  } catch (error: any) {
+    console.error("❌ Error getting approved property requests:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error while getting approved property requests",
       error: error.message,
     });
   }
