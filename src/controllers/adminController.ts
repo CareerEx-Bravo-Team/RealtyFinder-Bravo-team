@@ -281,14 +281,38 @@ export const updatePropertyRequestStatus = async (req: Request, res: Response) =
 
 // Get all users by role
 export const getAllUsersByRole = async (req: Request, res: Response) => {
-    try {
-        const { role } = req.query;
+  try {
+    const { role } = req.query; // e.g. ?role=buyer
 
-        const users = await User.find({ role: role }).select("-password");
-        res.status(200).json({ success: true, data: users });
-    } catch (err: any) {
-        res.status(500).json({ success: false, message: err.message || "Server error" });
+    // If no role is provided, get all users
+    const filter = role ? { role } : {};
+
+    const users = await User.find(filter)
+      .select("-password") // hide sensitive info
+      .sort({ createdAt: -1 });
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: role
+          ? `No users found with role '${role}'`
+          : "No users found",
+      });
     }
+
+    return res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users,
+    });
+  } catch (error: any) {
+    console.error("❌ Error fetching users:", error.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error while fetching users",
+      error: error.message,
+    });
+  }
 };
 
 
