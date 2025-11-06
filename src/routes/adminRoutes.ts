@@ -17,7 +17,9 @@ router.get("/users/:id", authMiddleware, adminMiddleware, getUserById);
 router.put("/users/:id", authMiddleware, adminMiddleware, updateUser);
 router.delete("/users/:id", authMiddleware, adminMiddleware, deleteUser);
 router.get("/activities", authMiddleware, adminMiddleware, getRecentActivities);
-router.get("/users/:role", authMiddleware, adminMiddleware, getAllUsersByRole);
+
+// User Management Routes
+router.get("/users/role/:role", authMiddleware, adminMiddleware, getAllUsersByRole);
 
 
 // Property Management Routes
