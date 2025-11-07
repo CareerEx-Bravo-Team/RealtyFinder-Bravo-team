@@ -44,8 +44,29 @@ router.get("/", getProperties);
 // ✅ Get property by ID (public)
 router.get("/:id", getPropertyById);
 
-// ✅ User’s Approved, Pending, Rejected (Logged-in only)
-router.get("/user/approved", authMiddleware, getUserApprovedProperties);
+
+// public access for approved properties
+router.get("/user/approved", (req, res, next) => {
+  const allowedOrigins = [
+    "https://realty-finder.vercel.app",
+    "http://localhost:5173", // optional for local testing
+  ];
+
+  const requestOrigin = req.headers.origin;
+
+  if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+    next();
+  } else {
+    return res.status(403).json({
+      success: false,
+      message:
+        "Access denied. This endpoint can only be accessed from the official RealtyFinder website.",
+    });
+  }
+}, getUserApprovedProperties);
+
+
+
 router.get("/user/pending", authMiddleware, getUserPendingProperties);
 router.get("/user/rejected", authMiddleware, getUserRejectedProperties);
 
