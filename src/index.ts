@@ -17,6 +17,7 @@ import profileRoutes from "./routes/profileRoutes";
 import adminRoutes from "./routes/adminRoutes";
 import propertyRequestRoutes from "./routes/propertyRequestRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
+import userRoutes from "./routes/userRoutes";
 
 // Middleware imports
 import { activityTracker } from "./middlewares/activityTrackerMiddleware";
@@ -66,6 +67,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/property-requests", propertyRequestRoutes);
+app.use("/api/users", userRoutes);
 
 
 
